@@ -14,7 +14,7 @@ replaced with the proposal-based response flow.
 from __future__ import annotations
 
 import uuid
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Response, UploadFile
 from fastapi.encoders import jsonable_encoder
@@ -210,6 +210,16 @@ async def list_lc_applications_endpoint(
     search: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    kind: Annotated[
+        Literal["application", "fast_deal"] | None,
+        Query(
+            description=(
+                "Вид строк: `application` — обычные заявки, `fast_deal` — быстрая "
+                "регистрация сделки. Без параметра — объединённый список; фильтр "
+                "статуса или источника обычной заявки исключает fast deals."
+            )
+        ),
+    ] = None,
 ) -> JSONResponse:
     lc_id = user.get("leasing_company_id")
     try:
@@ -222,6 +232,7 @@ async def list_lc_applications_endpoint(
                 status=status,
                 source_type=source_type,
                 search=search,
+                kind=kind,
                 page=page,
                 limit=limit,
             ),

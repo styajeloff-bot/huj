@@ -16,7 +16,7 @@
       <FastDealStatusBadge :status="deal.status" />
     </div>
 
-    <dl class="mb-4 grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+    <dl class="mb-4 grid grid-cols-2 gap-4 text-sm">
       <div>
         <dt class="text-[color:var(--storefront-text-muted,#6b7280)]">Клиент</dt>
         <dd class="font-medium text-[color:var(--storefront-text,#111827)]">{{ deal.client.name }}</dd>
@@ -56,6 +56,7 @@
 </template>
 
 <script setup lang="ts">
+import { useAuthStore } from '~/features/auth/store/auth'
 import FastDealKindBadge from '~/features/fast-deals/components/FastDealKindBadge.vue'
 import FastDealStatusBadge from '~/features/fast-deals/components/FastDealStatusBadge.vue'
 import { assigneeSummaries, fastDealParties } from '~/features/fast-deals/listPresentation'
@@ -70,7 +71,8 @@ import type { FastDealListItem } from '~/features/fast-deals/types'
  */
 const props = defineProps<{ deal: FastDealListItem }>()
 
+const authStore = useAuthStore()
 const { formatDateTime } = useFormatDate()
-const parties = computed(() => fastDealParties(props.deal))
+const parties = computed(() => fastDealParties(props.deal, { viewerIsLeasing: authStore.isLeasingCompany }))
 const assignees = computed(() => assigneeSummaries(props.deal))
 </script>

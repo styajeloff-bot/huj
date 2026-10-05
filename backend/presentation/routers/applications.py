@@ -322,6 +322,14 @@ async def list_applications(
     status: str | None = Query(default=None),
     source_type: str | None = Query(default=None),
     search: str | None = Query(default=None),
+    kind: Literal["application", "fast_deal"] | None = Query(
+        default=None,
+        description=(
+            "Вид строк: `application` — обычные заявки, `fast_deal` — быстрая "
+            "регистрация сделки. Без параметра — объединённый список; фильтр "
+            "статуса или источника обычной заявки исключает fast deals."
+        ),
+    ),
 ) -> JSONResponse:
     lc_id = await _resolve_lc_id(session, user)
     try:
@@ -334,6 +342,7 @@ async def list_applications(
                 status=status,
                 source_type=source_type,
                 search=search,
+                kind=kind,
                 page=page,
                 limit=limit,
                 include_authored_client_applications=(

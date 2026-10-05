@@ -57,7 +57,7 @@ _REASON_EVENTS = frozenset(
         NotifyEvent.CANCELLED,
     }
 )
-# Business data of the deal is withheld from facts about people, not about the deal.
+# These facts are told without the deal's business data: no client, positions or prices.
 _NO_BUSINESS_DATA = frozenset({NotifyEvent.RESET, NotifyEvent.ASSIGNEES_CHANGED})
 
 

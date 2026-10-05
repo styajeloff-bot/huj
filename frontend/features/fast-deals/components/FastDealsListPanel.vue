@@ -191,8 +191,8 @@
                 {{ fastDealDirectionLabel(deal.source_type) }}
               </td>
               <td class="px-4 py-3 text-gray-700">
-                <div>Дилер: <span class="font-medium text-gray-900">{{ fastDealParties(deal).dealer }}</span></div>
-                <div>ЛК: <span class="font-medium text-gray-900">{{ fastDealParties(deal).leasing }}</span></div>
+                <div>Дилер: <span class="font-medium text-gray-900">{{ partiesOf(deal).dealer }}</span></div>
+                <div>ЛК: <span class="font-medium text-gray-900">{{ partiesOf(deal).leasing }}</span></div>
               </td>
               <td class="px-4 py-3">
                 <FastDealStatusBadge :status="deal.status" />
@@ -249,6 +249,7 @@
 
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
+import { useAuthStore } from '~/features/auth/store/auth'
 import FastDealCreateModal from '~/features/fast-deals/components/FastDealCreateModal.vue'
 import FastDealStatusBadge from '~/features/fast-deals/components/FastDealStatusBadge.vue'
 import { useFastDealsList } from '~/features/fast-deals/composables/useFastDealsList'
@@ -286,10 +287,14 @@ const {
   changePage,
 } = useFastDealsList()
 
+const authStore = useAuthStore()
 const { formatDateTime } = useFormatDate()
 const uid = useId()
 const fieldId = (name: string) => `${uid}-${name}`
 const showCreate = ref(false)
+
+const partiesOf = (deal: FastDealListItem) =>
+  fastDealParties(deal, { viewerIsLeasing: authStore.isLeasingCompany })
 
 const companyOptionLabel = (company: CompanyBrief): string =>
   company.inn ? `${company.name} (ИНН ${company.inn})` : company.name

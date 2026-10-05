@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 from fastapi.encoders import jsonable_encoder
@@ -104,6 +104,15 @@ async def list_applications(
     status: str | None = Query(default=None),
     search: str | None = Query(default=None),
     source_type: str | None = Query(default=None),
+    kind: Literal["application", "fast_deal"] | None = Query(
+        default=None,
+        description=(
+            "Вид строк: `application` — обычные заявки, `fast_deal` — быстрая "
+            "регистрация сделки. Без параметра — объединённый список; фильтр "
+            "статуса или источника обычной заявки исключает fast deals. "
+            "Экспорт CSV/XLSX содержит только обычные заявки."
+        ),
+    ),
 ) -> JSONResponse | StreamingResponse:
     export_limit = 10_000 if fmt in {"csv", "xlsx"} else limit
     try:
@@ -114,6 +123,7 @@ async def list_applications(
                 status=status,
                 search=search,
                 source_type=source_type,
+                kind="application" if fmt in {"csv", "xlsx"} else kind,
             ),
             session,
         )

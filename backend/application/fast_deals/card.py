@@ -18,6 +18,7 @@ Money stays ``Decimal`` (the router writes exact strings); only ``etag`` is a st
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
@@ -197,6 +198,22 @@ def requested_terms(deal: Record) -> Record:
     }
 
 
+def blank_terms() -> Record:
+    """Terms with nothing in them, for a viewer who must not read the real ones."""
+    return {
+        "down_payment_mode": None,
+        "down_payment": None,
+        "down_payment_percent": None,
+        "lease_term_months": None,
+        "monthly_payment": None,
+        "monthly_payment_is_manual": False,
+        "calculated_monthly_payment": None,
+        "buyout_amount": None,
+        "total_cost": None,
+        "financing_amount": None,
+    }
+
+
 def final_terms(deal: Record) -> Record | None:
     """Terms fixed at confirmation; ``None`` until they exist."""
     if all(deal.get(name) is None for name in _FINAL_COLUMNS):
@@ -297,6 +314,36 @@ def _history_row(
     return row
 
 
+def _hidden_from_leasing(
+    event: Mapping[str, Any],
+    *,
+    own_ids: set[UUID],
+    first_invited: datetime | None,
+    company_id: UUID | None,
+) -> bool:
+    """Events of another invitation, from before the own one, or another party's files."""
+    linked = event.get("lc_application_id")
+    if linked is not None and linked not in own_ids:
+        return True
+    if first_invited is not None and event["created_at"] < first_invited:
+        return True
+    return bool(
+        event["event_type"] == HistoryEvent.FILE_UPLOADED
+        and linked is None
+        and event.get("actor_company_id") != company_id
+    )
+
+
+def _hidden_from_others(party: Party, kind: str, *, before_sending: bool) -> bool:
+    if party == Party.DEALER:
+        return before_sending or kind == HistoryEvent.SPLIT
+    if party == Party.PLATFORM:
+        return kind == HistoryEvent.FILE_UPLOADED
+    if party == Party.DISTRIBUTOR:
+        return before_sending or kind in _DISTRIBUTOR_HIDDEN
+    return False
+
+
 def _history(
     ctx: DealContext,
     events: list[Record],
@@ -322,31 +369,18 @@ def _history(
     )
     rows: list[Record] = []
     for index, original in enumerate(events):
-        kind = original["event_type"]
-        linked = original.get("lc_application_id")
         event: Mapping[str, Any] = original
         if party == Party.LEASING:
-            if linked is not None and linked not in own_ids:
-                continue
-            if first_invited is not None and original["created_at"] < first_invited:
-                continue
-            if (
-                kind == HistoryEvent.FILE_UPLOADED
-                and linked is None
-                and original.get("actor_company_id") != actor.company_id
+            if _hidden_from_leasing(
+                original, own_ids=own_ids, first_invited=first_invited, company_id=actor.company_id
             ):
                 continue
-        elif party == Party.DEALER:
-            if index < sent_index or kind == HistoryEvent.SPLIT:
-                continue
-        elif party == Party.PLATFORM:
-            if kind == HistoryEvent.FILE_UPLOADED:
-                continue
-        elif party == Party.DISTRIBUTOR:
-            if index < sent_index or kind in _DISTRIBUTOR_HIDDEN:
-                continue
-            if kind not in _DISTRIBUTOR_DETAILS:
-                event = {**original, "changes": None}
+        elif _hidden_from_others(
+            party, original["event_type"], before_sending=index < sent_index
+        ):
+            continue
+        if party == Party.DISTRIBUTOR and original["event_type"] not in _DISTRIBUTOR_DETAILS:
+            event = {**original, "changes": None}
         if lc_view:
             projected = project_history_event_for_lc(event)
             if projected is None:
@@ -446,7 +480,12 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
         for item in invitations
         if item["leasing_company_id"] in briefs
     }
-    files: list[Record] = await file_access.load_visible_files(session, ctx)
+    # A distributor sees a draft only to decide a support request addressed to it: it
+    # reads the deal data and its own request, never files, invitations or terms.
+    draft_for_distributor = party == Party.DISTRIBUTOR and ctx.status == DealStatus.DRAFT
+    files: list[Record] = (
+        [] if draft_for_distributor else await file_access.load_visible_files(session, ctx)
+    )
 
     facts: dict[str, Any] = {}
     if not lc_view and party in {Party.INITIATOR, Party.DEALER, Party.DISTRIBUTOR}:
@@ -459,7 +498,7 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
         # The chosen competitor stays unnamed for the others.
         leasing_company = None
     # A distributor reads requested terms; the final ones of DD copy the chosen offer.
-    hide_final = party == Party.DISTRIBUTOR and ctx.is_dd
+    hide_final = draft_for_distributor or (party == Party.DISTRIBUTOR and ctx.is_dd)
     shows_group = party in {Party.INITIATOR, Party.PLATFORM}
 
     return {
@@ -476,7 +515,7 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
         "initiator_company": company_brief(briefs, deal["initiator_company_id"]),
         "dealer_company": company_brief(briefs, deal["dealer_company_id"]),
         "leasing_company": leasing_company,
-        "requested_terms": requested_terms(deal),
+        "requested_terms": blank_terms() if draft_for_distributor else requested_terms(deal),
         "final_terms": None if hide_final else final_terms(deal),
         "vehicles_total": deal["vehicles_total"],
         "confirmed_amount": deal["confirmed_amount"],
@@ -484,7 +523,7 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
         "pending_changes": _pending_changes(ctx, lc_view=lc_view),
         "status_reason": deal["status_reason"],
         "vehicles": vehicles,
-        "lc_applications": _invitation_views(ctx, briefs, offers),
+        "lc_applications": [] if draft_for_distributor else _invitation_views(ctx, briefs, offers),
         "group_deals": await _group_deals(session, ctx),
         "files": files,
         "assignees": visible_assignees(

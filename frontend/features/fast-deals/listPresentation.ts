@@ -12,18 +12,31 @@ export interface FastDealParties {
   leasing: string
 }
 
+export interface FastDealPartiesOptions {
+  /**
+   * The viewer is a leasing company. The server tells it only about its own invitation, so before
+   * its offer is selected the leasing side of a dealer → LC deal is «Ваша компания», not a count.
+   */
+  viewerIsLeasing?: boolean
+}
+
 /**
  * Dealer and leasing company of a list row. In a dealer → LC deal the LC is unknown until the
  * dealer selects one offer: before that «в N лизинговых компаний» is shown. In a LC → dealer deal
  * a draft has no dealer yet (it is derived from the positions when the deal is sent).
  */
-export function fastDealParties(deal: FastDealPartiesSource): FastDealParties {
+export function fastDealParties(
+  deal: FastDealPartiesSource,
+  options: FastDealPartiesOptions = {},
+): FastDealParties {
   if (deal.source_type === 'dealer_to_leasing') {
     const invited = deal.invited_lc_count ?? 0
+    const pending = options.viewerIsLeasing
+      ? 'Ваша компания'
+      : invited > 0 ? invitedLeasingCompaniesLabel(invited) : 'Лизинговые компании не выбраны'
     return {
       dealer: deal.dealer_company?.name ?? deal.initiator_company.name,
-      leasing: deal.leasing_company?.name
-        ?? (invited > 0 ? invitedLeasingCompaniesLabel(invited) : 'Лизинговые компании не выбраны'),
+      leasing: deal.leasing_company?.name ?? pending,
     }
   }
   return {
