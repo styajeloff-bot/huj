@@ -305,7 +305,8 @@ export interface FastDealFilters {
   number?: string
   client_inn?: string
   client_company_id?: UUID
-  leasing_company_id?: UUID
+  /** Query name differs from `leasing_company_id`, which is the LC selector of the shared company-context dependency. */
+  lc_company_id?: UUID
   dealer_company_id?: UUID
   source_type?: FastDealSource
   status?: FastDealStatus

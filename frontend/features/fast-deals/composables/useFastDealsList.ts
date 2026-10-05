@@ -84,7 +84,7 @@ export function useFastDealsList() {
     if (inn) query.client_inn = inn
     if (filters.client_company_id) query.client_company_id = filters.client_company_id
     if (showLeasingCompanyFilter.value && filters.leasing_company_id) {
-      query.leasing_company_id = filters.leasing_company_id
+      query.lc_company_id = filters.leasing_company_id
     }
     if (showDealerFilter.value && filters.dealer_company_id) query.dealer_company_id = filters.dealer_company_id
     if (filters.source_type) query.source_type = filters.source_type
