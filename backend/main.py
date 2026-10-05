@@ -129,7 +129,9 @@ from presentation.routers.exchange_requests_distributor import (
     router as exchange_requests_distributor_router,
 )
 from presentation.routers.fast_deals import router as fast_deals_router
-from presentation.routers.fast_deals import vin_lookup_router as fast_deals_vin_lookup_router
+from presentation.routers.fast_deals import (
+    vin_lookup_router as fast_deals_vin_lookup_router,
+)
 from presentation.routers.identity_verification import (
     router as identity_verification_router,
 )
