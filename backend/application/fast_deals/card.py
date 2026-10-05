@@ -438,7 +438,7 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
 
     Raises ``FastDealNotFoundError`` when the actor may not see the deal.
     """
-    # Written alongside this module; imported here to keep module loading acyclic.
+    # Imported lazily: both modules build on the same access layer as this one.
     from application.fast_deals import file_access, supports_view
 
     ctx = await load_context(session, actor, deal_id, lock=False)

@@ -133,9 +133,7 @@ def _reject_unsupported(body: Mapping[str, Any], allowed: frozenset[str], where:
 
 def duplicate_unit_error(vin: str, message: str) -> FastDealConflictError:
     """409 that names the VIN; the global handler reads ``vin`` from the error."""
-    error = FastDealConflictError(message)
-    error.vin = vin  # type: ignore[attr-defined]
-    return error
+    return FastDealConflictError(message, vin=vin)
 
 
 def ensure_unique_unit(

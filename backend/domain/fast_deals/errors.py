@@ -37,7 +37,14 @@ class FastDealStateError(FastDealError):
 
 
 class FastDealConflictError(FastDealError):
-    """Uniqueness or concurrent-change conflict that is not a reserve conflict (409)."""
+    """Uniqueness or concurrent-change conflict that is not a reserve conflict (409).
+
+    ``vin`` names the offending unit when the conflict is about one (a duplicate position).
+    """
+
+    def __init__(self, msg: str, *, vin: str | None = None) -> None:
+        super().__init__(msg)
+        self.vin = vin
 
 
 class FastDealReserveConflictError(FastDealError):
