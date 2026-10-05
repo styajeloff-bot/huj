@@ -66,9 +66,10 @@ async def max_number_sequence(session: AsyncSession, prefix: str) -> int:
 
 @timed_repository
 async def get_deal(session: AsyncSession, deal_id: UUID, *, lock: bool = False) -> Record | None:
-    stmt = sa.select(FastDeal).where(FastDeal.id == deal_id)
+    # populate_existing: bulk UPDATEs elsewhere must never leave a stale identity-map row.
+    stmt = sa.select(FastDeal).where(FastDeal.id == deal_id).execution_options(populate_existing=True)
     if lock:
-        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        stmt = stmt.with_for_update()
     row = await session.scalar(stmt)
     return _dict(row) if row else None
 
@@ -221,7 +222,11 @@ async def list_vehicles(
     stmt = sa.select(FastDealVehicle).where(FastDealVehicle.fast_deal_id == deal_id)
     if not include_inactive:
         stmt = stmt.where(FastDealVehicle.item_status == "active")
-    rows = await session.scalars(stmt.order_by(FastDealVehicle.position, FastDealVehicle.id))
+    rows = await session.scalars(
+        stmt.order_by(FastDealVehicle.position, FastDealVehicle.id).execution_options(
+            populate_existing=True
+        )
+    )
     return [_dict(row) for row in rows.all()]
 
 
@@ -229,9 +234,11 @@ async def list_vehicles(
 async def get_vehicle(
     session: AsyncSession, vehicle_id: UUID, *, lock: bool = False
 ) -> Record | None:
-    stmt = sa.select(FastDealVehicle).where(FastDealVehicle.id == vehicle_id)
+    stmt = sa.select(FastDealVehicle).where(FastDealVehicle.id == vehicle_id).execution_options(
+        populate_existing=True
+    )
     if lock:
-        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        stmt = stmt.with_for_update()
     row = await session.scalar(stmt)
     return _dict(row) if row else None
 
@@ -306,8 +313,9 @@ async def list_lc_applications(
     if leasing_company_id is not None:
         stmt = stmt.where(FastDealLcApplication.leasing_company_id == leasing_company_id)
     stmt = stmt.order_by(FastDealLcApplication.created_at, FastDealLcApplication.id)
+    stmt = stmt.execution_options(populate_existing=True)
     if lock:
-        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        stmt = stmt.with_for_update()
     return [_dict(row) for row in (await session.scalars(stmt)).all()]
 
 
@@ -315,9 +323,11 @@ async def list_lc_applications(
 async def get_lc_application(
     session: AsyncSession, lc_application_id: UUID, *, lock: bool = False
 ) -> Record | None:
-    stmt = sa.select(FastDealLcApplication).where(FastDealLcApplication.id == lc_application_id)
+    stmt = sa.select(FastDealLcApplication).where(
+        FastDealLcApplication.id == lc_application_id
+    ).execution_options(populate_existing=True)
     if lock:
-        stmt = stmt.with_for_update().execution_options(populate_existing=True)
+        stmt = stmt.with_for_update()
     row = await session.scalar(stmt)
     return _dict(row) if row else None
 
@@ -379,7 +389,11 @@ async def insert_offer(session: AsyncSession, values: Record) -> Record:
 
 @timed_repository
 async def get_offer(session: AsyncSession, offer_id: UUID) -> Record | None:
-    row = await session.get(FastDealOffer, offer_id)
+    row = await session.scalar(
+        sa.select(FastDealOffer)
+        .where(FastDealOffer.id == offer_id)
+        .execution_options(populate_existing=True)
+    )
     return _dict(row) if row else None
 
 
@@ -392,7 +406,11 @@ async def list_offers(
     stmt = sa.select(FastDealOffer).where(FastDealOffer.lc_application_id.in_(lc_application_ids))
     if current_only:
         stmt = stmt.where(FastDealOffer.superseded_at.is_(None))
-    rows = await session.scalars(stmt.order_by(FastDealOffer.created_at, FastDealOffer.id))
+    rows = await session.scalars(
+        stmt.order_by(FastDealOffer.created_at, FastDealOffer.id).execution_options(
+            populate_existing=True
+        )
+    )
     return [_dict(row) for row in rows.all()]
 
 

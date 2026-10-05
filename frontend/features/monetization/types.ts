@@ -1,7 +1,8 @@
 import type { CatalogId, UUID } from '~/types/ids'
 
 export type Participant = 'leasing' | 'dealer' | 'distributor' | 'platform'
-export type SourceType = 'platform' | 'dealer_account' | 'exchange' | 'dealer_site' | 'distributor_site'
+export type FastDealSourceType = 'dealer_to_leasing' | 'leasing_to_dealer'
+export type SourceType = 'platform' | 'dealer_account' | 'exchange' | 'dealer_site' | 'distributor_site' | FastDealSourceType
 export type Role = 'carcraft_employee' | 'dealer' | 'distributor' | 'leasing_company'
 export type DecimalString = string
 export interface CatalogMark { id: CatalogId; ids: CatalogId[]; name: string }
@@ -92,6 +93,7 @@ export interface Deal {
   application_id?: UUID | null
   leasing_company_application_id?: UUID | null
   exchange_request_id?: UUID | null
+  fast_deal_id?: UUID | null
   application_number: string | null
   created_at?: string | null
   program_name?: string | null

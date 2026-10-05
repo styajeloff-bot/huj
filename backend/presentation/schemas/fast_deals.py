@@ -8,8 +8,10 @@ here; the routers return the JSON that the use cases build.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
+from enum import Enum
 from typing import Annotated, Any, Literal
 from uuid import UUID
 
@@ -488,3 +490,33 @@ class SupportProgramsResponse(BaseModel):
 
 class AssignableEmployeesResponse(BaseModel):
     items: list[dict[str, Any]]
+
+
+# ------------------------------------------------------------------------ wire encoding
+
+_CENT = Decimal("0.01")
+
+
+def _scalar_to_wire(value: Any) -> Any:
+    if isinstance(value, Decimal):
+        return format(value.quantize(_CENT, rounding=ROUND_HALF_UP), "f")
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime | date):
+        return value.isoformat()
+    if isinstance(value, Enum):
+        return value.value
+    return value
+
+
+def to_wire(value: Any) -> Any:
+    """JSON-ready copy of a use-case result with EXACT money.
+
+    ``jsonable_encoder`` would turn ``Decimal`` into a float; here every ``Decimal`` becomes
+    a kopeck-precision string, ids become strings and timestamps ISO 8601.
+    """
+    if isinstance(value, Mapping):
+        return {str(key): to_wire(item) for key, item in value.items()}
+    if isinstance(value, list | tuple | set | frozenset):
+        return [to_wire(item) for item in value]
+    return _scalar_to_wire(value)

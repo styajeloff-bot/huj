@@ -96,7 +96,8 @@ def _initiator_actions(
         actions.append(Action.EDIT)
         if status == DealStatus.DRAFT and deal.get("sent_at") is None:
             actions.append(Action.DELETE)
-        if status == DealStatus.DRAFT and ctx.active_vehicles > 0:
+        if ctx.active_vehicles > 0:
+            # A refused deal may be sent again as it is: sending reopens it first.
             actions.append(
                 Action.SEND_TO_LEASING_COMPANIES if dd else Action.SEND_TO_DEALERS
             )

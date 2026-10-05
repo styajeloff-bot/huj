@@ -1,6 +1,7 @@
 import { isUuid } from '~/types/ids'
 import type { RouteLocationRaw } from 'vue-router'
 import { buildWorkspaceLocation, readWorkspaceReturnStorefront } from '~/features/workspace/returnContext'
+import { isFastDealSource } from './dealSource'
 import type { Deal, Role } from './types'
 export type MonetizationTarget = { kind: 'deal' | 'application'; id: string } | { kind: 'requests' } | null
 export function monetizationTarget(query: Readonly<Record<string, unknown>>): MonetizationTarget {
@@ -21,6 +22,11 @@ export function dealApplicationLocation(deal: Deal, role: Role, context: Readonl
   const query: Record<string, string> = {}
   if (role !== 'carcraft_employee' && isUuid(context.notification_company_id)) query.notification_company_id = context.notification_company_id
   const storefront = readWorkspaceReturnStorefront(context.return_storefront)
+  if (isFastDealSource(deal.source_type)) {
+    // A fast deal has no application: its own card is the single source object for every role.
+    if (!isUuid(deal.fast_deal_id)) return null
+    return buildWorkspaceLocation('/workspace/fast-deals/' + deal.fast_deal_id, storefront, query)
+  }
   if (deal.source_type === 'exchange') {
     if (role === 'carcraft_employee' || !isUuid(deal.exchange_request_id)) return null
     return buildWorkspaceLocation('/workspace/exchange', storefront, { ...query, request: deal.exchange_request_id })
