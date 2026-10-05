@@ -85,7 +85,9 @@ async def change_status(
     if to_status in {DealStatus.REJECTED, DealStatus.CANCELLED}:
         columns["status_reason"] = reason
     elif to_status == DealStatus.DRAFT:
+        # A corrected deal starts over: the earlier refusal stays in the history only.
         columns["status_reason"] = None
+        columns["rejected_at"] = None
     if to_status in _SENT_STATUSES and deal["sent_at"] is None:
         columns["sent_at"] = datetime.now(UTC)
     columns.update(values or {})
@@ -202,13 +204,15 @@ async def mark_rejected(
     notify_event: str,
     event_type: str = HistoryEvent.REJECTED,
     lc_application_id: Any = None,
+    values: Record | None = None,
 ) -> Record:
     """Refusal with a reason: reservations are released, the deal becomes ``rejected``."""
     deal = ctx.deal
     await reservation.release_deal(session, deal["id"], reason="Сделка отклонена")
     fresh, version = await change_status(
         session, deal, ctx.actor, DealStatus.REJECTED,
-        event_type=event_type, reason=reason, lc_application_id=lc_application_id,
+        event_type=event_type, reason=reason, values=values,
+        lc_application_id=lc_application_id,
     )
     await notifications.notify(
         session, notify_event, fresh, ctx.actor, version=version,

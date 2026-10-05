@@ -34,6 +34,7 @@ async def handle_list_distributor_applications(
             actor_id=query.actor_id, actor_role=query.actor_role,
             actor_company_id=query.company_id, page=query.page,
             limit=query.limit, status=query.status,
+            kind="application",  # this feed is ordinary applications only
         ), session)
         return {"applications": result["applications"], "pagination": result["pagination"]}
     scope = await resolve_distributor_scope(

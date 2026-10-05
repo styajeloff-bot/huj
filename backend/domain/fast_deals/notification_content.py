@@ -112,6 +112,18 @@ def payload_terms(values: Mapping[str, Any], *, prefix: str = "") -> dict[str, A
     return {key: value for key, value in terms.items() if value is not None}
 
 
+def payload_requested_terms(deal: Mapping[str, Any]) -> dict[str, Any]:
+    """Requested terms of a deal; the financing amount and the contract cost are derived."""
+    snapshot: Mapping[str, Any] = deal.get("calc_snapshot") or {}
+    return payload_terms(
+        {
+            **deal,
+            "total_amount": snapshot.get("financed_amount"),
+            "total_cost": snapshot.get("total_cost"),
+        }
+    )
+
+
 def payload_changes(changes: Sequence[Mapping[str, Any]]) -> list[dict[str, Any]]:
     """The dealer's changes as the leasing company may see them (final prices, data)."""
     visible = project_changes_for_lc([dict(item) for item in changes])
@@ -131,10 +143,9 @@ def payload_support_request(
     request: Mapping[str, Any], vehicles: Sequence[Mapping[str, Any]]
 ) -> dict[str, Any]:
     """A support request for its dealer-side/distributor addressees only."""
-    vehicle = next(
-        (item for item in vehicles if item["id"] == request.get("fast_deal_vehicle_id")),
-        {},
-    )
+    # The request carries the position id as a string, the rows carry a UUID.
+    vehicle_id = str(request.get("fast_deal_vehicle_id"))
+    vehicle = next((item for item in vehicles if str(item["id"]) == vehicle_id), {})
     return {
         "id": str(request["id"]) if request.get("id") else None,
         "status": request.get("status"),
@@ -142,7 +153,7 @@ def payload_support_request(
         "decided_amount": _wire(request.get("decided_amount")),
         "comment": clip(request.get("comment")),
         "decision_comment": clip(request.get("decision_comment")),
-        "vin": vehicle.get("vin"),
+        "vin": vehicle.get("vin") or request.get("vin"),
         "mark_name": vehicle.get("mark_name"),
         "model_name": vehicle.get("model_name"),
     }

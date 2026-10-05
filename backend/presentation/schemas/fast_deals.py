@@ -304,6 +304,7 @@ class VehicleOut(BaseModel):
     support_request: dict[str, Any] | None = None
     can_request_support: bool | None = None
     support_hint: str | None = None
+    price_on_request: bool | None = None
 
 
 class OfferOut(BaseModel):

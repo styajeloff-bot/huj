@@ -251,6 +251,10 @@ def _vehicle_view(
             view.update({key: support_view[key] for key in _SUPPORT_VIEW_KEYS if key in support_view})
     if editor:
         view.update({name: vehicle.get(name) for name in _EDITOR_IDS})
+    if editor or ctx.party == Party.PLATFORM:
+        # A request-priced listing needs an explicit price: the UI offers editing it.
+        snapshot: Mapping[str, Any] = vehicle.get("catalog_snapshot") or {}
+        view["price_on_request"] = bool(snapshot.get("price_on_request"))
     return view
 
 
@@ -380,7 +384,9 @@ def _history(
         ):
             continue
         if party == Party.DISTRIBUTOR and original["event_type"] not in _DISTRIBUTOR_DETAILS:
-            event = {**original, "changes": None}
+            # Refusal texts of the parties stay between them; a cancellation is public.
+            keep = original["event_type"] == HistoryEvent.CANCELLED
+            event = {**original, "changes": None, "reason": original.get("reason") if keep else None}
         if lc_view:
             projected = project_history_event_for_lc(event)
             if projected is None:
@@ -388,6 +394,22 @@ def _history(
             event = projected
         rows.append(_history_row(event, detailed=not lc_view, lc_names=lc_names))
     return rows
+
+
+def _status_reason(ctx: DealContext) -> str | None:
+    """Refusal or cancellation text as this party may read it.
+
+    A DD deal is refused with the text of the last leasing company that answered: its
+    competitors read their own reason only, and a distributor reads no refusal at all.
+    """
+    reason: str | None = ctx.deal["status_reason"]
+    if ctx.party == Party.DISTRIBUTOR:
+        return reason if ctx.status == DealStatus.CANCELLED else None
+    if ctx.party == Party.LEASING and ctx.status == DealStatus.REJECTED:
+        own = ctx.lc_application
+        refused = own is not None and own["status"] == LcStatus.REJECTED
+        return own["rejection_reason"] if own is not None and refused else None
+    return reason
 
 
 # ------------------------------------------------------------------------ pending changes
@@ -498,7 +520,12 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
         # The chosen competitor stays unnamed for the others.
         leasing_company = None
     # A distributor reads requested terms; the final ones of DD copy the chosen offer.
-    hide_final = draft_for_distributor or (party == Party.DISTRIBUTOR and ctx.is_dd)
+    # An invited leasing company that was not chosen must not read the chosen offer's terms.
+    unchosen = (
+        party == Party.LEASING
+        and (ctx.lc_application is None or ctx.lc_application["status"] not in _SELECTED)
+    )
+    hide_final = draft_for_distributor or (party == Party.DISTRIBUTOR and ctx.is_dd) or unchosen
     shows_group = party in {Party.INITIATOR, Party.PLATFORM}
 
     return {
@@ -521,7 +548,7 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
         "confirmed_amount": deal["confirmed_amount"],
         "has_pending_changes": bool(deal["has_pending_changes"]),
         "pending_changes": _pending_changes(ctx, lc_view=lc_view),
-        "status_reason": deal["status_reason"],
+        "status_reason": _status_reason(ctx),
         "vehicles": vehicles,
         "lc_applications": [] if draft_for_distributor else _invitation_views(ctx, briefs, offers),
         "group_deals": await _group_deals(session, ctx),

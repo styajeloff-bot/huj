@@ -26,6 +26,7 @@ from domain.fast_deals.notification_content import (
     Scope,
     clip,
     payload_changes,
+    payload_requested_terms,
     payload_support_request,
     payload_terms,
     payload_vehicles,
@@ -335,7 +336,7 @@ async def _facts(
         "vehicles_total": wire(total),
     }
     if event == NotifyEvent.SENT:
-        facts["terms"] = payload_terms(deal)
+        facts["terms"] = payload_requested_terms(deal)
     elif final:
         facts["terms"] = payload_terms(deal, prefix="final_")
     if event in _REASON_EVENTS:

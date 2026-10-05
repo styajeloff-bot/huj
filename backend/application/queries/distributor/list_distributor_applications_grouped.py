@@ -31,6 +31,7 @@ async def handle_list_distributor_applications_grouped(
         result = await handle_list_applications(ListApplicationsQuery(
             actor_id=query.actor_id, actor_role=query.actor_role,
             actor_company_id=query.company_id, page=query.page, limit=query.limit,
+            kind="application",  # fast deals have their own status dictionary
         ), session)
         grouped_result: dict[str, list[dict[str, Any]]] = {}
         for application in result["applications"]:

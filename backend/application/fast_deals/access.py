@@ -55,7 +55,11 @@ def parse_if_match(header: str | None, deal_id: UUID) -> int:
     match = _ETAG.match(header.strip())
     if match is None:
         raise FastDealVersionConflictError("Некорректный заголовок If-Match")
-    if UUID(match.group(1)) != deal_id:
+    try:
+        named_id = UUID(match.group(1))
+    except ValueError as exc:  # 36 hex/dash characters that are still not a UUID
+        raise FastDealVersionConflictError("Некорректный заголовок If-Match") from exc
+    if named_id != deal_id:
         raise FastDealVersionConflictError
     return int(match.group(2))
 

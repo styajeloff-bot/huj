@@ -31,7 +31,11 @@ def to_decimal(value: Any, *, field: str | None = None) -> Decimal:
 
 def money(value: Any, *, field: str | None = None) -> Decimal:
     """Quantize to kopecks, rejecting values that do not fit ``numeric(15, 2)``."""
-    result = to_decimal(value, field=field).quantize(CENT, rounding=ROUND_HALF_UP)
+    try:
+        result = to_decimal(value, field=field).quantize(CENT, rounding=ROUND_HALF_UP)
+    except InvalidOperation as exc:
+        # More digits than the decimal context holds: a plain 422, not a server error.
+        raise FastDealValidationError("Сумма слишком велика", field=field) from exc
     if abs(result) > MAX_MONEY:
         raise FastDealValidationError("Сумма слишком велика", field=field)
     return result
@@ -53,7 +57,10 @@ def positive_money(value: Any, *, field: str | None = None) -> Decimal:
 
 def percent(value: Any, *, field: str | None = None) -> Decimal:
     """Percent with the scale of ``numeric(5, 2)``."""
-    result = to_decimal(value, field=field).quantize(CENT, rounding=ROUND_HALF_UP)
+    try:
+        result = to_decimal(value, field=field).quantize(CENT, rounding=ROUND_HALF_UP)
+    except InvalidOperation as exc:
+        raise FastDealValidationError("Процент должен быть от 0 до 100", field=field) from exc
     if result < 0 or result > HUNDRED:
         raise FastDealValidationError("Процент должен быть от 0 до 100", field=field)
     return result

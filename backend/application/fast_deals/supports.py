@@ -24,6 +24,9 @@ from infrastructure.repositories import fast_deal_support_repository as support_
 
 Record = dict[str, Any]
 
+# Catalog bases that live in the position's snapshot (the unit as it was when added).
+_SNAPSHOT_BASES = {"base_price": "price", "special_price": "special_price"}
+
 
 async def create_compensations_on_confirm(
     session: AsyncSession, deal: Record, actor: Actor
@@ -53,7 +56,7 @@ async def create_compensations_on_confirm(
         context: dict[str, Decimal | None] | None = None
         for template in templates:
             base = template["calculation_base"]
-            if base in {"special_price", "dealer_cost"} and context is None:
+            if base == "dealer_cost" and context is None:
                 context = await comp_repo.get_calculation_context(
                     session,
                     applied_support_id=support["id"],
@@ -101,17 +104,21 @@ def _base_amount(
 ) -> Decimal:
     """Calculation base of one template, from the confirmed position and deal terms.
 
-    ``application_price`` is the position's final (agreed) price. ``special_price`` and
-    ``dealer_cost`` are the catalog unit's own values; a manual position or a unit
-    without them falls back to the agreed price, like the exchange.
+    ``application_price`` is the position's final (agreed) price. ``base_price`` (the list
+    price) and ``special_price`` are the catalog unit's values as they were when it was
+    added to the deal; ``dealer_cost`` is read from the catalog like the exchange does. A
+    unit without such a value falls back to the agreed price.
     """
     if base == "support_amount":
         return money(support["support_amount"])
-    if base == "base_price":
-        return money(vehicle["base_price"])
     if base == "down_payment":
         return _down_payment_share(deal, vehicle, total)
-    if base in {"special_price", "dealer_cost"} and context is not None:
+    if base in _SNAPSHOT_BASES:
+        recorded = (vehicle.get("catalog_snapshot") or {}).get(_SNAPSHOT_BASES[base])
+        if recorded is not None:
+            return money(recorded)
+        return money(vehicle["base_price"] if base == "base_price" else vehicle["final_price"])
+    if base == "dealer_cost" and context is not None:
         value = context.get(base)
         if value is not None:
             return money(value)

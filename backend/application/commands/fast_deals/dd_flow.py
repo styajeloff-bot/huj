@@ -436,6 +436,8 @@ async def handle_lc_reject(cmd: LcRejectCommand, session: AsyncSession) -> dict[
         await lifecycle.mark_rejected(
             session, ctx, reason=reason, notify_event=NotifyEvent.REJECTED,
             lc_application_id=application["id"],
+            # The refusal of the selected company takes its choice back with it.
+            values={"leasing_company_id": None, "final_offer_id": None} if final_stage else None,
         )
         return {"deal": await build_card(session, cmd.actor, ctx.deal_id)}
 

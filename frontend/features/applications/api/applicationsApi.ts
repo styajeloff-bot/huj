@@ -535,7 +535,7 @@ export const createApplicationsApi = (config: RuntimeConfig, notificationCompany
 
     /** GET /api/v1/applications — ordinary applications of the current user (the client's cabinet list) */
     listApplications(page = 1, limit = 50, status = '', filters: ApplicationListFilters = {}) {
-      return request<ApplicationsListResponse>(`/api/v1/applications?${listQuery(page, limit, status, filters)}`)
+      return request<ApplicationsListResponse>(`/api/v1/applications?${listQuery(page, limit, status, { kind: 'application', ...filters })}`)
     },
 
     /**

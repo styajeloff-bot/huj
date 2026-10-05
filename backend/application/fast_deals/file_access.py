@@ -25,7 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from application.fast_deals.access import DealContext
 from domain.fast_deals.errors import FastDealAccessDeniedError, FastDealValidationError
-from domain.fast_deals.values import FileKind, LcStatus, Party
+from domain.fast_deals.values import DealStatus, FileKind, LcStatus, Party
 from infrastructure.repositories import fast_deal_file_repository as file_repo
 
 Record = dict[str, Any]
@@ -79,7 +79,10 @@ def _leasing_reads_main(ctx: DealContext) -> bool:
 
 
 def _can_read_main(ctx: DealContext) -> bool:
-    if ctx.party in {Party.INITIATOR, Party.DEALER, Party.DISTRIBUTOR, Party.PLATFORM}:
+    if ctx.party == Party.DISTRIBUTOR:
+        # A draft opens to a distributor for its support request only, never for documents.
+        return ctx.status != DealStatus.DRAFT
+    if ctx.party in {Party.INITIATOR, Party.DEALER, Party.PLATFORM}:
         return True
     return ctx.party == Party.LEASING and _leasing_reads_main(ctx)
 
