@@ -314,6 +314,8 @@ def action_route(
             route = (
                 f"/workspace/exchange?request={event.payload['exchange_request_id']}"
             )
+        elif event.payload.get("fast_deal_id"):
+            route = f"/workspace/fast-deals/{event.payload['fast_deal_id']}"
         else:
             route = "/workspace/monetization"
         return route + (

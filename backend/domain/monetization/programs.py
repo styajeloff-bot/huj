@@ -11,8 +11,13 @@ from zoneinfo import ZoneInfo
 from domain.monetization.errors import MonetizationConflict, MonetizationValidation
 from domain.monetization.identifiers import entity_id, same_entity
 
+# A fast deal ("Регистрация сделки") is its own source: the dealer or the leasing
+# company registers a deal agreed outside the platform. ``quick_deal_distributor``
+# is deliberately absent, a distributor never initiates this flow.
+FAST_DEAL_SOURCES = frozenset({"dealer_to_leasing", "leasing_to_dealer"})
 SOURCES = frozenset(
     {"platform", "dealer_account", "exchange", "dealer_site", "distributor_site"}
+    | FAST_DEAL_SOURCES
 )
 PARTICIPANTS = frozenset({"leasing", "dealer", "distributor", "platform"})
 CURRENT_RULES_VERSION = 2

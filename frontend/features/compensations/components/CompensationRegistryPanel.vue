@@ -30,6 +30,7 @@
             <option value="">Все источники</option>
             <option value="platform">Платформа</option>
             <option value="exchange">Биржа</option>
+            <option value="fast_deal">Быстрая регистрация</option>
           </select>
         </div>
 
@@ -168,9 +169,7 @@
               <td v-if="col('application')" class="px-4 py-3 text-sm">
                 <NuxtLink
                   v-if="canOpenApplicationLink(compensation)"
-                  :to="compensation.source === 'exchange'
-                    ? `/workspace/exchange?request=${compensation.exchange_request_id}`
-                    : `/application/${compensation.application_id}`"
+                  :to="applicationLink(compensation)"
                   class="text-[color:var(--storefront-link,#2563eb)] hover:text-[color:var(--storefront-link-hover,#1e40af)] hover:underline"
                 >
                   {{ applicationDisplayNumber(compensation) }}
@@ -600,21 +599,34 @@ const showActionsColumn = computed(
   () => authStore.isCarCraftEmployee || (authStore.userRole != null && PAYER_ROLES.has(authStore.userRole))
 )
 
-const applicationDisplayNumber = (row: CompensationRecord): string => (
-  row.source === 'exchange'
-    ? row.exchange_request_display_number || row.exchange_request_id || '—'
-    : row.application_display_number || '—'
-)
+const applicationDisplayNumber = (row: CompensationRecord): string => {
+  if (row.source === 'exchange') return row.exchange_request_display_number || row.exchange_request_id || '—'
+  // A fast deal number is always shown as is; its UUID is never a user-facing number.
+  if (row.source === 'fast_deal') return row.fast_deal_display_number || '—'
+  return row.application_display_number || '—'
+}
 
 const canOpenApplicationLink = (row: CompensationRecord): boolean => {
   if (row.source === 'exchange') {
     return Boolean(row.exchange_request_id && (authStore.isLeasingCompany || authStore.isDealer))
   }
+  // The fast deal card is available to every business role, never to clients.
+  if (row.source === 'fast_deal') return Boolean(row.fast_deal_id && authStore.isBusinessRole)
   if (!row.application_id || authStore.isDealer) return false
   return authStore.isCarCraftEmployee || authStore.isDistributor || authStore.isClient || authStore.isLeasingCompany
 }
 
-const sourceLabel = (source: CompensationSource): string => source === 'exchange' ? 'Биржа' : 'Платформа'
+const applicationLink = (row: CompensationRecord): string => {
+  if (row.source === 'exchange') return `/workspace/exchange?request=${row.exchange_request_id}`
+  if (row.source === 'fast_deal') return `/workspace/fast-deals/${row.fast_deal_id}`
+  return `/application/${row.application_id}`
+}
+
+const sourceLabel = (source: CompensationSource): string => {
+  if (source === 'exchange') return 'Биржа'
+  if (source === 'fast_deal') return 'Быстрая регистрация'
+  return 'Платформа'
+}
 
 const payerLabel = (value: CompensationPayer): string =>
   payerOptions.find((item) => item.value === value)?.label || value

@@ -241,7 +241,8 @@ def deal_view(deal: dict[str, Any], actor: dict[str, Any]) -> dict[str, Any]:
     return {
         **{key: deal.get(key) for key in (
             "id", "application_number", "application_id", "leasing_company_application_id",
-            "exchange_request_id", "source_type", "brand", "program_id", "program_name",
+            "exchange_request_id", "fast_deal_id", "source_type", "brand", "program_id",
+            "program_name",
             "leasing_company", "dealer_company", "distributor_company", "client_company", "base_amount",
             "status", "revision", "created_at",
         )},
@@ -304,9 +305,9 @@ async def get_deal(session: AsyncSession, deal_id: UUID,
 
 def deal_summary(deal: dict[str, Any], actor: dict[str, Any]) -> dict[str, Any]:
     visible = deal_view(deal, actor)
-    keys = ("id", "application_number", "source_type", "brand", "leasing_company",
-            "dealer_company", "distributor_company", "client_company", "base_amount",
-            "status", "confirmations", "created_at")
+    keys = ("id", "application_number", "fast_deal_id", "source_type", "brand",
+            "leasing_company", "dealer_company", "distributor_company", "client_company",
+            "base_amount", "status", "confirmations", "created_at")
     result = {key: visible[key] for key in keys}
     companies = {"leasing": visible["leasing_company"], "dealer": visible["dealer_company"],
                  "distributor": visible["distributor_company"]}

@@ -46,6 +46,7 @@ async def notify_capture_result(
     origin = (
         context.get("leasing_company_application_id")
         or context.get("exchange_request_id")
+        or context.get("fast_deal_id")
         or context.get("application_id")
     )
     if origin is None:
@@ -53,6 +54,13 @@ async def notify_capture_result(
         return
     reason = str(result.get("reason") or "Недостаточно данных для расчёта монетизации")
     fingerprint = hashlib.sha256(reason.encode()).hexdigest()[:24]
+    payload = {
+        "reason": reason,
+        "exchange_request_id": context.get("exchange_request_id"),
+    }
+    if context.get("fast_deal_id") is not None:
+        # The route of the failure points to the fast deal card, not to an application.
+        payload["fast_deal_id"] = context["fast_deal_id"]
     await record_notification_event(
         session,
         event_type="monetization.capture_failed",
@@ -62,10 +70,7 @@ async def notify_capture_result(
         application_id=context.get("application_id"),
         actor_user_id=context.get("actor_user_id"),
         request_number=_number(context, origin),
-        payload={
-            "reason": reason,
-            "exchange_request_id": context.get("exchange_request_id"),
-        },
+        payload=payload,
         occurrence_key=f"monetization.capture_failed:{origin}:{fingerprint}",
     )
 

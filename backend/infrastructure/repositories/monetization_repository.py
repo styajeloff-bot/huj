@@ -460,14 +460,23 @@ async def _advisory_lock(session: AsyncSession, key: str) -> None:
     )
 
 
+def _origin_field(context: Record) -> str:
+    """The one column that identifies the source of a captured deal.
+
+    Capture is idempotent per origin UUID. A fast deal is keyed by its own id, never
+    by its split ``group_id``, so every part of a split deal is a separate source.
+    """
+    if context.get("exchange_request_id"):
+        return "exchange_request_id"
+    if context.get("fast_deal_id"):
+        return "fast_deal_id"
+    return "leasing_company_application_id"
+
+
 async def insert_deal(
     session: AsyncSession, context: Record, program: Record, amounts: list[Record]
 ) -> Record:
-    origin_field = (
-        "exchange_request_id"
-        if context.get("exchange_request_id")
-        else "leasing_company_application_id"
-    )
+    origin_field = _origin_field(context)
     origin = context[origin_field]
     await _advisory_lock(session, f"monetization:{origin_field}:{origin}")
     existing = await session.scalar(
@@ -971,17 +980,18 @@ async def _participant_snapshot(session: AsyncSession, context: Record) -> Recor
 
 _SOURCE_UUID_FIELDS = frozenset({
     "application_id", "leasing_company_application_id", "exchange_request_id",
-    "leasing_company_id", "dealer_company_id", "distributor_company_id",
+    "fast_deal_id", "leasing_company_id", "dealer_company_id", "distributor_company_id",
     "client_company_id", "dealer_group_id", "final_proposal_id", "accepted_bid_id",
     "actor_user_id",
 })
 _VEHICLE_UUID_FIELDS = frozenset({
     "vehicle_id", "application_vehicle_id", "allocation_id", "dealer_company_id",
-    "stock_dealer_company_id",
+    "stock_dealer_company_id", "fast_deal_vehicle_id",
 })
 _SUPPORT_UUID_FIELDS = frozenset({
     "id", "application_id", "exchange_request_id", "support_program_id",
     "dealer_company_id", "distributor_company_id", "created_by", "vehicle_id",
+    "fast_deal_id", "fast_deal_vehicle_id", "product_id",
 })
 
 
@@ -1209,11 +1219,7 @@ async def _validate_support_reference(session: AsyncSession, payload: Record) ->
 
 
 async def find_source_deal(session: AsyncSession, context: Record) -> Record | None:
-    origin_field = (
-        "exchange_request_id"
-        if context.get("exchange_request_id")
-        else "leasing_company_application_id"
-    )
+    origin_field = _origin_field(context)
     origin = context[origin_field]
     await _advisory_lock(session, f"monetization:{origin_field}:{origin}")
     deal_id = await session.scalar(

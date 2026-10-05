@@ -22,19 +22,24 @@ async def capture_source_transition(
     actor_user_id: UUID,
     leasing_company_application_id: UUID | None = None,
     exchange_request_id: UUID | None = None,
+    fast_deal_id: UUID | None = None,
 ) -> dict[str, Any]:
     """A savepoint preserves the completed source action when capture is impossible.
 
     Caller already holds the source row lock and owns the transaction. This is
     invoked only at the transition, never on historical reads or replayed deals.
+    Exactly one of the three mutually exclusive sources is given.
     """
-    if (leasing_company_application_id is None) == (exchange_request_id is None):
+    origins = (leasing_company_application_id, exchange_request_id, fast_deal_id)
+    if sum(origin is not None for origin in origins) != 1:
         raise ValueError("Укажите ровно один источник монетизации")
     context: dict[str, Any] = {
         "actor_user_id": actor_user_id,
         "leasing_company_application_id": leasing_company_application_id,
         "exchange_request_id": exchange_request_id,
     }
+    if fast_deal_id is not None:
+        context["fast_deal_id"] = fast_deal_id
     try:
         async with session.begin_nested():
             if leasing_company_application_id is not None:
@@ -43,6 +48,8 @@ async def capture_source_transition(
                 )
             elif exchange_request_id is not None:
                 facts = await sources.exchange_source(session, exchange_request_id)
+            elif fast_deal_id is not None:
+                facts = await sources.fast_deal_source(session, fast_deal_id)
             context.update(facts)
             context = build_source_context(context, datetime.now(UTC))
             return await capture(session, context)
