@@ -95,13 +95,17 @@ import type { FastDealCard, SelectedCompany } from '~/features/fast-deals/types'
  * `@select` goes to the backend unchanged — the backend creates the company, never a user or SMS)
  * plus a mandatory phone `+7XXXXXXXXXX`. The direction follows the caller's role.
  */
+const props = defineProps<{
+  /** Company of a notification link the list was opened with; the deal is created for that company. */
+  companyContext?: string
+}>()
 const emit = defineEmits<{
   close: []
   created: [deal: FastDealCard]
 }>()
 
 const authStore = useAuthStore()
-const api = createFastDealsApi(useRuntimeConfig())
+const api = createFastDealsApi(useRuntimeConfig(), () => props.companyContext)
 
 const uid = useId()
 const companyLabelId = `${uid}-company`

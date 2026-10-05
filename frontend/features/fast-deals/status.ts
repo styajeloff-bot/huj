@@ -7,7 +7,7 @@ import type { FastDealSource, FastDealStatus, LcApplicationStatus } from './type
 
 export const FAST_DEAL_STATUS_LABELS: Record<FastDealStatus, string> = {
   draft: 'Черновик',
-  pending_lc_confirmation: 'Ожидает подтверждения ЛК',
+  pending_lc_confirmation: 'Ожидает КП лизинговых компаний',
   pending_lc_final_confirmation: 'Ожидает финального подтверждения ЛК',
   pending_dealer_confirmation: 'Ожидает подтверждения дилера',
   pending_lc_changes_confirmation: 'Ожидает решения ЛК по изменениям',

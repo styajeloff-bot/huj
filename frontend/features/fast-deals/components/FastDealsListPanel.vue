@@ -175,7 +175,7 @@
             <tr v-for="deal in items" :key="deal.id" class="align-top hover:bg-gray-50" data-testid="fast-deals-row">
               <td class="px-4 py-3">
                 <NuxtLink
-                  :to="fastDealRoute(deal.id)"
+                  :to="dealLocation(deal.id)"
                   class="whitespace-nowrap font-medium text-blue-600 hover:text-blue-700 hover:underline"
                 >
                   {{ deal.display_number }}
@@ -208,7 +208,7 @@
                 <span v-else class="text-gray-400">Не назначены</span>
               </td>
               <td class="whitespace-nowrap px-4 py-3 text-right">
-                <NuxtLink :to="fastDealRoute(deal.id)" class="btn-secondary text-sm">Открыть</NuxtLink>
+                <NuxtLink :to="dealLocation(deal.id)" class="btn-secondary text-sm">Открыть</NuxtLink>
               </td>
             </tr>
           </tbody>
@@ -243,7 +243,7 @@
       </div>
     </div>
 
-    <FastDealCreateModal v-if="showCreate" @close="showCreate = false" @created="onCreated" />
+    <FastDealCreateModal v-if="showCreate" :company-context="companyContext" @close="showCreate = false" @created="onCreated" />
   </section>
 </template>
 
@@ -254,7 +254,6 @@ import FastDealCreateModal from '~/features/fast-deals/components/FastDealCreate
 import FastDealStatusBadge from '~/features/fast-deals/components/FastDealStatusBadge.vue'
 import { useFastDealsList } from '~/features/fast-deals/composables/useFastDealsList'
 import { assigneeSummaries, fastDealParties } from '~/features/fast-deals/listPresentation'
-import { fastDealRoute } from '~/features/fast-deals/routes'
 import {
   FAST_DEAL_DIRECTION_OPTIONS,
   FAST_DEAL_STATUS_OPTIONS,
@@ -265,6 +264,8 @@ import { formatMoney } from '~/features/fast-deals/money'
 import type { CompanyBrief, FastDealCard, FastDealListItem } from '~/features/fast-deals/types'
 
 const {
+  companyContext,
+  dealLocation,
   items,
   total,
   page,
@@ -308,7 +309,7 @@ const vehiclesSummary = (deal: FastDealListItem): string => {
 // A just created draft is edited in its own card.
 const onCreated = async (deal: FastDealCard) => {
   showCreate.value = false
-  await navigateTo(fastDealRoute(deal.id))
+  await navigateTo(dealLocation(deal.id))
 }
 
 onMounted(load)

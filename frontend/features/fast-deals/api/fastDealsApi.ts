@@ -130,8 +130,10 @@ export const createFastDealsApi = (config: RuntimeConfig, companyContext: () => 
       if (payload.leasingApplicationId) body.append('lc_application_id', payload.leasingApplicationId)
       return request<CardResponse & { files: FastDealFile[] }>(`${BASE}/${id}/files`, { method: 'POST', headers: { 'If-Match': etag }, body })
     },
-    downloadFile: async (id: UUID, fileId: UUID, filename: string) => saveBlob(await request<Blob>(`${BASE}/${id}/files/${fileId}`, { responseType: 'blob' }), filename),
-    downloadArchive: async (id: UUID, filename: string) => saveBlob(await request<Blob>(`${BASE}/${id}/files/archive`, { responseType: 'blob' }), filename),
+    downloadFile: async (id: UUID, fileId: UUID, filename: string) =>
+      saveBlob(await request<Blob>(`${BASE}/${id}/files/${fileId}`, { responseType: 'blob' }).catch(decodeBlobError), filename),
+    downloadArchive: async (id: UUID, filename: string) =>
+      saveBlob(await request<Blob>(`${BASE}/${id}/files/archive`, { responseType: 'blob' }).catch(decodeBlobError), filename),
     assignableEmployees: (id: UUID) =>
       request<{ items: { id: UUID; name: string | null; email: string | null; sub_role: string }[] }>(`${BASE}/${id}/assignable-employees`),
     setAssignees: (id: UUID, etag: string, body: { primary_user_id: UUID; additional_user_id?: UUID | null }) =>
@@ -140,6 +142,19 @@ export const createFastDealsApi = (config: RuntimeConfig, companyContext: () => 
 }
 
 export type FastDealsApi = ReturnType<typeof createFastDealsApi>
+
+/** A failed blob download carries its JSON error body as a Blob: decode it so `parseFastDealError` can read it. */
+async function decodeBlobError(error: unknown): Promise<never> {
+  const failure = error as { data?: unknown }
+  if (failure?.data instanceof Blob) {
+    try {
+      failure.data = JSON.parse(await failure.data.text())
+    } catch {
+      failure.data = undefined
+    }
+  }
+  throw error
+}
 
 function saveBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)

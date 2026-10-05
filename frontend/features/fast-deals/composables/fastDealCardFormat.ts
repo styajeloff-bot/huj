@@ -10,6 +10,7 @@ import type {
   LcApplicationStatus,
   MoneyString,
 } from '../types'
+import { FAST_DEAL_STATUS_LABELS, fastDealStatusClass } from '../status'
 
 /*
  * Presentation helpers of the fast deal card. Money is an exact decimal STRING end to end:
@@ -173,30 +174,11 @@ export function formatFileSize(bytes: number | null | undefined): string {
 
 // ------------------------------------------------------------------------------- labels
 
-export const dealStatusLabels: Record<FastDealStatus, string> = {
-  draft: 'Черновик',
-  pending_lc_confirmation: 'Ожидает КП лизинговых компаний',
-  pending_lc_final_confirmation: 'Ожидает финального подтверждения ЛК',
-  pending_dealer_confirmation: 'Ожидает подтверждения дилера',
-  pending_lc_changes_confirmation: 'Ожидает решения ЛК по изменениям',
-  confirmed: 'Подтверждена',
-  rejected: 'Отклонена',
-  cancelled: 'Отменена',
-}
-
-export const dealStatusTones: Record<FastDealStatus, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  pending_lc_confirmation: 'bg-blue-100 text-blue-800',
-  pending_lc_final_confirmation: 'bg-indigo-100 text-indigo-800',
-  pending_dealer_confirmation: 'bg-amber-100 text-amber-800',
-  pending_lc_changes_confirmation: 'bg-amber-100 text-amber-800',
-  confirmed: 'bg-green-100 text-green-800',
-  rejected: 'bg-red-100 text-red-800',
-  cancelled: 'bg-slate-200 text-slate-700',
-}
+// The same wording and colors as the list: `status.ts` owns the dictionary of deal statuses.
+export const dealStatusLabels: Record<FastDealStatus, string> = FAST_DEAL_STATUS_LABELS
 
 export const dealStatusLabel = (status: string): string => dealStatusLabels[status as FastDealStatus] ?? status
-export const dealStatusTone = (status: string): string => dealStatusTones[status as FastDealStatus] ?? 'bg-gray-100 text-gray-700'
+export const dealStatusTone = (status: string): string => fastDealStatusClass(status)
 
 export const lcStatusLabels: Record<LcApplicationStatus, string> = {
   pending_review: 'Ожидает КП',
@@ -323,12 +305,26 @@ export const vehicleFieldLabels: Record<string, string> = {
   additional: 'Дополнительный ответственный',
   positions: 'Позиции',
   comment: 'Комментарий',
+  category_name: 'Категория',
+  dealer_company_id: 'Дилер',
+  leasing_company: 'Лизинговая компания',
+  down_payment_mode: 'Способ задания аванса',
+  monthly_payment_is_manual: 'Платёж задан вручную',
+  group_id: 'Группа сделок',
+  kind: 'Вид документа',
+  files: 'Файлы',
+  support_program: 'Программа поддержки',
+  support_request: 'Запрос поддержки',
+  support_requested_amount: 'Запрошенная поддержка',
+  support_decided_amount: 'Согласованная поддержка',
+  support_accounted: 'Учтённая поддержка',
 }
 export const vehicleFieldLabel = (field: string): string => vehicleFieldLabels[field] ?? field
 
 const MONEY_FIELDS = new Set([
   'base_price', 'adjustment_amount', 'support_amount', 'options_amount', 'final_price', 'down_payment', 'monthly_payment',
   'buyout_amount', 'total_cost', 'total_amount', 'vehicles_total', 'confirmed_amount',
+  'support_requested_amount', 'support_decided_amount', 'support_accounted',
 ])
 const PERCENT_FIELDS = new Set(['down_payment_percent'])
 const ITEM_STATUS_LABELS: Record<string, string> = { active: 'Активна', removed: 'Удалена', replaced: 'Заменена' }
@@ -357,6 +353,9 @@ export function formatChangeValue(field: string, value: unknown): string {
   if (field === 'adjustment_type') return ADJUSTMENT_LABELS[text] ?? text
   if (field === 'item_status') return ITEM_STATUS_LABELS[text] ?? text
   if (field === 'status') return dealStatusLabel(text)
+  if (field === 'kind') return fileKindLabel(text)
+  if (field === 'support_request') return supportStatusLabel(text)
+  if (field === 'down_payment_mode') return text === 'percent' ? 'В процентах' : text === 'amount' ? 'В рублях' : text
   return text
 }
 

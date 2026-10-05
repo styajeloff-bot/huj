@@ -77,6 +77,8 @@ function valueText(field: string, value: unknown): string {
   if ((field === 'purposes' || field === 'regions') && Array.isArray(value)) {
     return value.length ? value.map(code => ctx.directoryLabel(field, String(code))).join(', ') : 'Не выбрано'
   }
+  // A dealer is stored by its company id: show the name the card already knows.
+  if (field === 'dealer_company_id' && typeof value === 'string') return ctx.companyName(value) || value
   return formatChangeValue(field, value)
 }
 

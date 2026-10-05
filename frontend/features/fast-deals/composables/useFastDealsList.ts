@@ -1,6 +1,7 @@
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import { useAuthStore } from '~/features/auth/store/auth'
 import { createFastDealsApi, parseFastDealError } from '~/features/fast-deals/api/fastDealsApi'
+import { fastDealRoute } from '~/features/fast-deals/routes'
 import type {
   FastDealFilters,
   FastDealListItem,
@@ -50,6 +51,12 @@ export function useFastDealsList() {
     isUuid(route.query.notification_company_id) ? route.query.notification_company_id : undefined,
   )
   const api = createFastDealsApi(config, () => companyContext.value)
+
+  /** Link to a deal that keeps the company context of this screen (a notification link may carry one). */
+  const dealLocation = (id: UUID) =>
+    companyContext.value
+      ? { path: fastDealRoute(id), query: { notification_company_id: companyContext.value } }
+      : { path: fastDealRoute(id) }
 
   const items = ref<FastDealListItem[]>([])
   const total = ref(0)
@@ -178,6 +185,8 @@ export function useFastDealsList() {
   })
 
   return {
+    companyContext,
+    dealLocation,
     items,
     total,
     page,

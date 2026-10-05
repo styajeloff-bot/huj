@@ -124,10 +124,17 @@ const kindOptions = computed<KindOption[]>(() => {
     options.push({ value: 'deal_main', label: fileKindLabel('deal_main') })
   }
   if (party === 'initiator' || party === 'dealer' || party === 'leasing') {
+    // The addressee is the other side: invited leasing companies (DD dealer), the dealer of the deal
+    // (known after the DL split) or the initiator; a closed invitation of a leasing company gets nothing new.
+    const ownStatus = ctx.ownApplication.value?.status ?? ''
+    const unavailable = needsAddressees.value
+      ? !openApplications.value.length
+      : (party === 'initiator' && ctx.isDL.value && !props.deal.dealer_company)
+        || (party === 'leasing' && !OPEN_STATUSES.includes(ownStatus))
     options.push({
       value: 'deal_additional',
       label: fileKindLabel('deal_additional'),
-      disabledReason: needsAddressees.value && !openApplications.value.length ? 'Доступно после отправки' : undefined,
+      disabledReason: unavailable ? (party === 'leasing' ? 'Ваше приглашение закрыто' : 'Доступно после отправки') : undefined,
     })
   }
   if (party === 'leasing' && ctx.isDD.value) {
