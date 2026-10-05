@@ -1237,16 +1237,30 @@ class ApplicationVehicleAllocation(Base):
         sa.Index("uq_vehicle_active_allocation", "product_id", unique=True,
                  postgresql_where=sa.text("released_at IS NULL")),
         sa.Index("idx_allocation_line", "application_vehicle_id"),
+        sa.Index("idx_allocation_fast_deal_vehicle", "fast_deal_vehicle_id",
+                 postgresql_where=sa.text("fast_deal_vehicle_id IS NOT NULL")),
+        sa.CheckConstraint(
+            "(application_vehicle_id IS NULL) <> (fast_deal_vehicle_id IS NULL)",
+            name="ck_allocation_exactly_one_source",
+        ),
+        sa.CheckConstraint(
+            "reserved_until IS NOT NULL OR fast_deal_vehicle_id IS NOT NULL",
+            name="ck_allocation_reserved_until_required",
+        ),
     )
     id: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    application_vehicle_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), sa.ForeignKey("application_vehicles.id", ondelete="RESTRICT"), nullable=False)
+    # Exactly one source claims the unit: an application line or a fast-deal position.
+    application_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), sa.ForeignKey("application_vehicles.id", ondelete="RESTRICT"), nullable=True)
+    fast_deal_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True), sa.ForeignKey("fast_deal_vehicles.id", ondelete="RESTRICT"), nullable=True)
     product_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), sa.ForeignKey("special_equipment_products.id", ondelete="RESTRICT"), nullable=False)
     vehicle_id = synonym("product_id")
     vin: Mapped[str | None] = mapped_column(sa.String(50), nullable=True)
     unit_price: Mapped[Decimal] = mapped_column(sa.Numeric(15, 2), nullable=False)
-    reserved_until: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False)
+    # NULL only for a fast-deal claim, which never expires by itself.
+    reserved_until: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now())
     released_at: Mapped[datetime | None] = mapped_column(sa.DateTime(timezone=True), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(PGUUID(as_uuid=True), sa.ForeignKey("users.id"), nullable=False)

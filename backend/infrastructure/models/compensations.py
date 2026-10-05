@@ -31,17 +31,25 @@ class CompensationModel(Base):
         sa.Index("idx_compensations_due_date", "due_date"),
         sa.Index("idx_compensations_application_id", "application_id"),
         sa.Index("idx_compensations_exchange_request_id", "exchange_request_id"),
+        sa.Index(
+            "idx_compensations_fast_deal_id",
+            "fast_deal_id",
+            postgresql_where=sa.text("fast_deal_id IS NOT NULL"),
+        ),
         sa.CheckConstraint(
-            "source IN ('platform', 'exchange')",
+            "source IN ('platform', 'exchange', 'fast_deal')",
             name="ck_compensations_source",
         ),
         sa.CheckConstraint(
             "("
             "source = 'platform' AND application_id IS NOT NULL "
-            "AND exchange_request_id IS NULL"
+            "AND exchange_request_id IS NULL AND fast_deal_id IS NULL"
             ") OR ("
             "source = 'exchange' AND exchange_request_id IS NOT NULL "
-            "AND application_id IS NULL"
+            "AND application_id IS NULL AND fast_deal_id IS NULL"
+            ") OR ("
+            "source = 'fast_deal' AND fast_deal_id IS NOT NULL "
+            "AND application_id IS NULL AND exchange_request_id IS NULL"
             ")",
             name="ck_compensations_exchange_source_link",
         ),
@@ -62,6 +70,11 @@ class CompensationModel(Base):
     exchange_request_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         sa.ForeignKey("exchange_requests.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    fast_deal_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        sa.ForeignKey("fast_deals.id", ondelete="RESTRICT"),
         nullable=True,
     )
     source: Mapped[str] = mapped_column(

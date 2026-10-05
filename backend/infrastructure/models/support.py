@@ -306,9 +306,25 @@ class ApplicationAppliedSupport(Base):
             "support_program_id",
             name="uq_application_applied_supports_exchange_program",
         ),
+        sa.Index(
+            "idx_application_applied_supports_fast_deal",
+            "fast_deal_id",
+            postgresql_where=sa.text("fast_deal_id IS NOT NULL"),
+        ),
+        sa.Index(
+            "uq_application_applied_supports_fast_deal_position_program",
+            "fast_deal_vehicle_id",
+            "support_program_id",
+            unique=True,
+            postgresql_where=sa.text("fast_deal_vehicle_id IS NOT NULL"),
+        ),
         sa.CheckConstraint(
-            "(application_id IS NULL) <> (exchange_request_id IS NULL)",
+            "num_nonnulls(application_id, exchange_request_id, fast_deal_id) = 1",
             name="ck_application_applied_supports_exactly_one_source",
+        ),
+        sa.CheckConstraint(
+            "fast_deal_vehicle_id IS NULL OR fast_deal_id IS NOT NULL",
+            name="ck_application_applied_supports_fast_deal_position",
         ),
     )
 
@@ -324,6 +340,17 @@ class ApplicationAppliedSupport(Base):
     exchange_request_id: Mapped[uuid.UUID | None] = mapped_column(
         PGUUID(as_uuid=True),
         sa.ForeignKey("exchange_requests.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    # Fast-deal origin: never cascaded, a confirmed deal keeps its support history.
+    fast_deal_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        sa.ForeignKey("fast_deals.id", ondelete="RESTRICT"),
+        nullable=True,
+    )
+    fast_deal_vehicle_id: Mapped[uuid.UUID | None] = mapped_column(
+        PGUUID(as_uuid=True),
+        sa.ForeignKey("fast_deal_vehicles.id", ondelete="RESTRICT"),
         nullable=True,
     )
     product_id: Mapped[uuid.UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)

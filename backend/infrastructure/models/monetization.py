@@ -95,7 +95,7 @@ def build_tables(metadata: sa.MetaData) -> tuple[sa.Table, ...]:
         sa.Column("source_type", sa.String(30), nullable=False),
         sa.Column("position", sa.Integer, nullable=False),
         sa.CheckConstraint(
-            "source_type IN ('platform','dealer_account','exchange','dealer_site','distributor_site')",
+            "source_type IN ('platform','dealer_account','exchange','dealer_site','distributor_site','dealer_to_leasing','leasing_to_dealer')",
             name="ck_monetization_source_type",
         ),
         sa.UniqueConstraint(
@@ -170,6 +170,8 @@ def build_tables(metadata: sa.MetaData) -> tuple[sa.Table, ...]:
         _uuid("application_id"),
         _uuid("leasing_company_application_id"),
         _uuid("exchange_request_id"),
+        # Logical reference to fast_deals.id: financial snapshots outlive sources.
+        _uuid("fast_deal_id"),
         sa.Column("source_type", sa.String(30), nullable=False),
         sa.Column("application_number", sa.String(100)),
         _uuid("leasing_company_id", nullable=False),
@@ -207,7 +209,7 @@ def build_tables(metadata: sa.MetaData) -> tuple[sa.Table, ...]:
         ),
         _created(),
         sa.CheckConstraint(
-            "(exchange_request_id IS NOT NULL AND application_id IS NULL AND leasing_company_application_id IS NULL AND source_type = 'exchange') OR (exchange_request_id IS NULL AND application_id IS NOT NULL AND leasing_company_application_id IS NOT NULL AND source_type IN ('platform','dealer_account','dealer_site','distributor_site'))",
+            "(exchange_request_id IS NOT NULL AND application_id IS NULL AND leasing_company_application_id IS NULL AND fast_deal_id IS NULL AND source_type = 'exchange') OR (exchange_request_id IS NULL AND application_id IS NOT NULL AND leasing_company_application_id IS NOT NULL AND fast_deal_id IS NULL AND source_type IN ('platform','dealer_account','dealer_site','distributor_site')) OR (exchange_request_id IS NULL AND application_id IS NULL AND leasing_company_application_id IS NULL AND fast_deal_id IS NOT NULL AND source_type IN ('dealer_to_leasing','leasing_to_dealer'))",
             name="ck_monetization_deal_origin",
         ),
         sa.CheckConstraint(
@@ -222,6 +224,7 @@ def build_tables(metadata: sa.MetaData) -> tuple[sa.Table, ...]:
         sa.UniqueConstraint(
             "exchange_request_id", name="uq_monetization_deal_exchange"
         ),
+        sa.UniqueConstraint("fast_deal_id", name="uq_monetization_deal_fast_deal"),
         sa.Index("idx_monetization_deal_dealer", "dealer_company_id"),
         sa.Index("idx_monetization_deal_leasing", "leasing_company_id"),
     )

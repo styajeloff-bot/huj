@@ -1094,10 +1094,12 @@ class SpecialEquipmentProduct(Base):
             "publication_status <> 'published' OR seller_company_id IS NOT NULL",
             name="ck_special_equipment_products_published_seller",
         ),
+        # A request-priced unit without ``price_from`` may be claimed only on the
+        # strength of an allocation with an agreed positive price. That is a
+        # cross-table rule, enforced by trigger ``se_product_claimed_price_guard``.
         sa.CheckConstraint(
             "sale_status NOT IN ('reserved', 'sold') OR "
-            "(price_on_request AND price_from > 0) OR "
-            "(NOT price_on_request AND price IS NOT NULL)",
+            "price_on_request OR price IS NOT NULL",
             name="ck_special_equipment_products_claimed_price",
         ),
         sa.CheckConstraint(
