@@ -25,6 +25,7 @@ from application.commands.fast_deals.editing import (
 from application.fast_deals import reservation
 from application.fast_deals.access import DealContext, active_vehicle, load_for_mutation
 from application.fast_deals.actor import Actor
+from application.fast_deals.history import field_changes
 from application.fast_deals.vehicle_builder import (
     added_changes,
     build_position,
@@ -39,6 +40,20 @@ from infrastructure.repositories import fast_deal_repository as repo
 Record = dict[str, Any]
 
 _OPTION_COLUMNS = ("equipments", "services", "purposes", "regions")
+# Requested terms are computed from the total of the positions: with no position left
+# they mean nothing (and could not be rebased on a zero total), so they start over.
+_NO_TERMS: Record = {
+    "down_payment_mode": None,
+    "down_payment": None,
+    "down_payment_percent": None,
+    "lease_term_months": None,
+    "monthly_payment": None,
+    "monthly_payment_is_manual": False,
+    "calculated_monthly_payment": None,
+    "buyout_amount": None,
+    "calc_snapshot": None,
+}
+_LOGGED_TERMS = tuple(name for name in _NO_TERMS if name != "calc_snapshot")
 
 
 @dataclass
@@ -173,8 +188,11 @@ async def handle_remove_vehicle(
     scope = await begin_edit(session, ctx)
     await reservation.release_vehicle(session, vehicle["id"], reason="Позиция удалена из сделки")
     await repo.update_vehicle(session, vehicle["id"], {"item_status": ItemStatus.REMOVED.value})
+    changes = removed_changes(vehicle, ItemStatus.REMOVED.value)
+    if len(ctx.vehicles) == 1:
+        cleared = await repo.update_deal(session, scope.deal["id"], _NO_TERMS)
+        changes.update(field_changes(scope.deal, cleared, _LOGGED_TERMS))
     await recalculate(session, scope)
     return await record_and_render(
-        session, scope, HistoryEvent.VEHICLE_REMOVED,
-        changes=removed_changes(vehicle, ItemStatus.REMOVED.value),
+        session, scope, HistoryEvent.VEHICLE_REMOVED, changes=changes
     )

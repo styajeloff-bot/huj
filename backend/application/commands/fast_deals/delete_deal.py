@@ -37,6 +37,7 @@ async def handle_delete_fast_deal(
     undo the deletion (the object stays unreachable, no row points at it).
     """
     ctx = await load_for_mutation(session, cmd.actor, cmd.deal_id, cmd.if_match)
+    ctx.require_initiator()
     ctx.require(Action.DELETE, _NOT_DELETABLE)
     if ctx.deal["status"] != DealStatus.DRAFT or ctx.deal["sent_at"] is not None:
         raise FastDealStateError(_NOT_DELETABLE)

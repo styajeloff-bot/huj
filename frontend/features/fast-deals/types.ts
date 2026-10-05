@@ -86,7 +86,11 @@ export interface AppliedSupport {
   name: string
   support_type: string
   support_amount: MoneyString
+  base_amount?: MoneyString | null
   support_program_id?: UUID | null
+  comment?: string | null
+  /** Only a price-reducing program (vehicle discount) lowers the price; others drive compensations. */
+  affects_price?: boolean
 }
 
 export interface SupportRequest {
@@ -98,6 +102,9 @@ export interface SupportRequest {
   comment?: string | null
   decision_comment?: string | null
   distributor_company_id?: UUID
+  distributor_name?: string | null
+  created_at?: string | null
+  decided_at?: string | null
 }
 
 export interface FastDealVehicle {
@@ -363,6 +370,7 @@ export interface SupportProgramOption {
   support_amount: MoneyString
   is_compatible: boolean
   applied: boolean
+  affects_price?: boolean
   starts_at?: string | null
   ends_at?: string | null
 }
