@@ -1,0 +1,11 @@
+FROM carcraft-questionnaire22286-browser:local
+WORKDIR /workspace
+COPY frontend /workspace
+RUN ln -s /app/node_modules /workspace/node_modules
+ENV NODE_ENV=production
+ENV NUXT_PUBLIC_API_BASE=""
+ENV NUXT_PUBLIC_YANDEX_METRIKA_ENABLED=false
+ENV NUXT_PUBLIC_VERBOX_ENABLED=false
+RUN bun run build:frontend
+EXPOSE 3000
+CMD ["bun", "run", "start:frontend"]

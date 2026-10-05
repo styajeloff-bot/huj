@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagnosing Carcraft Bugs"
+  short_description: "Find evidence-backed root causes safely"
+  default_prompt: "Use $diagnosing-bugs to reproduce this Carcraft issue, test ranked hypotheses, and report an evidence-backed root cause without implementing a fix unless I explicitly requested one."

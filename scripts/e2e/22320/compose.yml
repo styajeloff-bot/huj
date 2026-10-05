@@ -1,0 +1,135 @@
+name: carcraft-22320-e2e
+
+x-environment: &environment
+  PYTHONPATH: /source
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USER: applicationsources22320
+  DB_PASSWORD: local-e2e-only
+  DB_NAME: applicationsources22320
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BROKERS: redpanda:9092
+  KAFKA_NOTIFICATION_CONSUMER_GROUP: applicationsources22320-notifications
+  PUBLIC_URL: http://localhost:18320
+  API_URL: http://backend:3002
+  COOKIE_SECURE: "false"
+  JWT_KEYS_DIR: /runtime/jwt
+  JWT_ACTIVE_KID: e2e
+  MOBILE_ID_ENABLED: "false"
+  ACCESS_TOKEN_EXPIRY_MINUTES: "1440"
+  RATE_LIMIT_ENABLED: "false"
+  CSRF_ENABLED: "true"
+  DADATA_API_KEY: ""
+  DADATA_API_URL: http://127.0.0.1:9
+  SMSC_LOGIN: ""
+  SMSC_PASSWORD: ""
+  SMTP_HOST: ""
+  SMTP_USER: ""
+  SMTP_PASSWORD: ""
+  S3_ENDPOINT: http://minio:9000
+  S3_BUCKET: applicationsources22320
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY_ID: local-registry
+  S3_SECRET_ACCESS_KEY: local-registry-only
+  MODULBANK_API_URL: http://127.0.0.1:9
+  MODULBANK_SBP_API_URL: http://127.0.0.1:9
+  MODULKASSA_API_URL: http://127.0.0.1:9
+  PARSER_API_URL: http://127.0.0.1:9
+  DOCUMENT_RECOGNITION_HOST: http://127.0.0.1:9
+  TRACEMALLOC_ENABLED: "false"
+  ENVIRONMENT: local
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: applicationsources22320
+      POSTGRES_PASSWORD: local-e2e-only
+      POSTGRES_DB: applicationsources22320
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U applicationsources22320 -d applicationsources22320"]
+      interval: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      retries: 30
+  redpanda:
+    image: redpandadata/redpanda:latest
+    command: [redpanda, start, --overprovisioned, --smp, "1", --memory, 512M, --reserve-memory, 0M, --node-id, "0", --check=false, --kafka-addr, PLAINTEXT://0.0.0.0:9092, --advertise-kafka-addr, PLAINTEXT://redpanda:9092]
+    healthcheck:
+      test: [CMD-SHELL, "rpk cluster info -X brokers=localhost:9092 >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  minio:
+    image: quay.io/minio/minio@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
+    command: [server, /data]
+    environment:
+      MINIO_ROOT_USER: local-registry
+      MINIO_ROOT_PASSWORD: local-registry-only
+    volumes: [minio_data:/data]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:9000/minio/health/live]
+      interval: 2s
+      retries: 30
+  init-keys:
+    image: carcraft-applicationsources22320-backend:local
+    user: "0:0"
+    working_dir: /runtime
+    entrypoint: []
+    command: [/app/.venv/bin/python, /e2e/runtime.py, keys]
+    environment: *environment
+    volumes: [/tmp/carcraft-22320-e2e:/runtime, .:/e2e:ro, ../../../backend:/source:ro]
+  backend:
+    build:
+      context: ../../..
+      dockerfile: scripts/e2e/22320/Dockerfile.backend
+    image: carcraft-applicationsources22320-backend:local
+    user: "0:0"
+    working_dir: /runtime
+    entrypoint: []
+    command: [/app/.venv/bin/python, -m, uvicorn, main:app, --host, 0.0.0.0, --port, "3002"]
+    environment: *environment
+    volumes: [/tmp/carcraft-22320-e2e:/runtime, .:/e2e:ro, ../../../backend:/source:ro]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      redpanda: {condition: service_healthy}
+      init-keys: {condition: service_completed_successfully}
+      minio: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:3002/api/v1/health]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  frontend:
+    build:
+      context: ../../..
+      dockerfile: scripts/e2e/22320/Dockerfile.frontend
+    image: carcraft-applicationsources22320-frontend:local
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NUXT_API_INTERNAL_BASE: http://backend:3002
+      NUXT_PUBLIC_API_BASE: http://localhost:18320
+      NUXT_PUBLIC_BASE_URL: http://localhost:18320
+      NUXT_PUBLIC_YANDEX_METRIKA_ENABLED: "false"
+      NUXT_PUBLIC_VERBOX_ENABLED: "false"
+    depends_on:
+      backend: {condition: service_healthy}
+  nginx:
+    image: nginx:alpine
+    networks: [default, ingress]
+    ports: ["127.0.0.1:18320:80"]
+    volumes: [./nginx.e2e.conf:/etc/nginx/conf.d/default.conf:ro]
+    depends_on: [backend, frontend]
+networks:
+  default: {internal: true}
+  ingress: {driver: bridge}
+volumes:
+  postgres_data:
+  minio_data:

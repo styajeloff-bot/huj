@@ -1,0 +1,4 @@
+interface:
+  display_name: "Carcraft Code Review"
+  short_description: "Review Carcraft changes against standards and spec"
+  default_prompt: "Review the current Carcraft branch against origin/test on separate Standards and Spec axes. Keep the review read-only."

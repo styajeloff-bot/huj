@@ -1,0 +1,20 @@
+# syntax=docker/dockerfile:1
+FROM ghcr.io/astral-sh/uv:0.9.7-python3.12-bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git openssh-client fonts-dejavu-core libcairo2 libpango-1.0-0 \
+    libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev shared-mime-info \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1
+COPY backend/pyproject.toml backend/uv.lock ./
+# Same pinned public host key as the repository CI contract. Private credentials
+# are forwarded by BuildKit only for this step, never copied into an image layer.
+RUN install -d -m 700 /root/.ssh && printf '%s\n' \
+    'gitlab.carcraft.ru ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM8o7Dymzrou1iw4BwkhuOTxxfVqBmKij+Yu1aePYvIy' \
+    > /root/.ssh/known_hosts
+RUN --mount=type=ssh,required=true --mount=type=cache,target=/root/.cache/uv \
+    GIT_SSH_COMMAND='ssh -o BatchMode=yes -o StrictHostKeyChecking=yes' \
+    uv sync --frozen --no-install-project
+COPY backend /source
+ENV PYTHONPATH=/source PATH=/app/.venv/bin:$PATH
+WORKDIR /runtime

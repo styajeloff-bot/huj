@@ -1,0 +1,10 @@
+FROM imbios/bun-node:latest-20.19.1-debian
+WORKDIR /app
+COPY frontend/package.json frontend/bun.lock ./
+RUN bun ci
+COPY frontend /app
+ENV NUXT_PUBLIC_API_BASE=""
+ENV NUXT_PUBLIC_YANDEX_METRIKA_ENABLED=false
+ENV NUXT_PUBLIC_VERBOX_ENABLED=false
+RUN bun run build:frontend
+CMD ["bun", "run", "start:frontend"]

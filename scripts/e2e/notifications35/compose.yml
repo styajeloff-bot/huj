@@ -1,0 +1,186 @@
+name: carcraft-notifications35-followup-v2
+
+x-app-env: &app-env
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USER: notifications35
+  DB_PASSWORD: notifications35-local-only
+  DB_NAME: notifications35_runtime
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BROKERS: redpanda:9092
+  KAFKA_NOTIFICATION_CONSUMER_GROUP: notifications35-runtime
+  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_PORT: "8123"
+  CLICKHOUSE_USER: default
+  CLICKHOUSE_PASSWORD: notifications35-local-only
+  CLICKHOUSE_DB: default
+  PUBLIC_URL: http://localhost:18048
+  COOKIE_SECURE: "false"
+  JWT_KEYS_DIR: /runtime-keys/jwt
+  MOBILE_ID_ENABLED: "false"
+  SMTP_HOST: smtp
+  SMTP_PORT: "1025"
+  SMTP_USER: sender@notifications35.test
+  SMTP_PASSWORD: notifications35-local-only
+  S3_ENDPOINT: ${S3_ENDPOINT:-https://storage.yandexcloud.net}
+  S3_REGION: us-east-1
+  S3_BUCKET: notifications35
+  S3_ACCESS_KEY_ID: notifications35
+  S3_SECRET_ACCESS_KEY: notifications35-local-only
+  DADATA_API_KEY: ""
+  SMSC_LOGIN: ""
+  SMSC_PASSWORD: ""
+  TRACEMALLOC_ENABLED: "false"
+  LOG_LEVEL: INFO
+
+x-app: &app
+  image: carcraft-notifications35-followup-v2-backend:local
+  environment: *app-env
+  volumes:
+    - runtime_keys:/runtime-keys:ro
+    - /tmp/carcraft-notifications35-followup-v2-runtime:/runtime
+    - ./:/e2e:ro
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+    redpanda: {condition: service_healthy}
+    init-keys: {condition: service_completed_successfully}
+
+services:
+  init-keys:
+    image: carcraft-notifications35-followup-v2-backend:local
+    user: "0:0"
+    entrypoint: [sh, -ec]
+    command:
+      - |
+        mkdir -p /runtime-keys/jwt /runtime-keys/smtp
+        if [ ! -f /runtime-keys/jwt/runtime35.pem ]; then
+          openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out /runtime-keys/jwt/runtime35.pem
+          openssl pkey -in /runtime-keys/jwt/runtime35.pem -pubout -out /runtime-keys/jwt/runtime35.pub.pem
+        fi
+        if [ ! -f /runtime-keys/smtp/key.pem ]; then
+          openssl req -x509 -newkey rsa:2048 -nodes -keyout /runtime-keys/smtp/key.pem -out /runtime-keys/smtp/cert.pem -days 2 -subj /CN=smtp
+        fi
+        chown -R 999:999 /runtime-keys
+        chmod 750 /runtime-keys /runtime-keys/jwt /runtime-keys/smtp
+        chmod 640 /runtime-keys/jwt/runtime35.pem /runtime-keys/smtp/key.pem
+    volumes: [runtime_keys:/runtime-keys]
+  postgres:
+    image: postgres:16-alpine
+    networks: [default, ingress]
+    environment:
+      POSTGRES_USER: notifications35
+      POSTGRES_PASSWORD: notifications35-local-only
+      POSTGRES_DB: notifications35_runtime
+      POSTGRES_INITDB_ARGS: --encoding=UTF8 --locale=C
+    ports: ["127.0.0.1:15448:5432"]
+    volumes: [postgres_data:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U notifications35 -d notifications35_runtime"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, "yes"]
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      retries: 30
+  redpanda:
+    image: redpandadata/redpanda:v24.3.5
+    command: [redpanda, start, --overprovisioned, --smp, "1", --memory, 1G, --reserve-memory, 0M, --node-id, "0", --check=false, --kafka-addr, PLAINTEXT://0.0.0.0:9092, --advertise-kafka-addr, PLAINTEXT://redpanda:9092]
+    volumes: [redpanda_data:/var/lib/redpanda/data]
+    healthcheck:
+      test: [CMD-SHELL, "rpk cluster info -X brokers=localhost:9092 >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  clickhouse:
+    image: clickhouse/clickhouse-server@sha256:f90a77560f72b10802106ee49e9870e41668cbc496e280c3911f6e3b216657f3
+    environment:
+      CLICKHOUSE_PASSWORD: notifications35-local-only
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    volumes: [clickhouse_data:/var/lib/clickhouse]
+    healthcheck:
+      test: [CMD-SHELL, "wget -q -O - http://localhost:8123/ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+  smtp:
+    image: axllent/mailpit@sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365
+    networks: [default, ingress]
+    user: "999:999"
+    command: [--smtp-auth-accept-any, --smtp-require-starttls, --smtp-tls-cert, /runtime-keys/smtp/cert.pem, --smtp-tls-key, /runtime-keys/smtp/key.pem, --smtp-allowed-recipients, '^[^@]+@notifications35\.test$$', --smtp-disable-rdns]
+    volumes: [runtime_keys:/runtime-keys:ro]
+    ports: ["127.0.0.1:18049:8025"]
+    depends_on:
+      init-keys: {condition: service_completed_successfully}
+  backend:
+    <<: *app
+    build:
+      context: ../../../backend
+      dockerfile: ../scripts/e2e/notifications35/Dockerfile.backend
+    command: [sh, -ec, "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 3002"]
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:3002/api/v1/health]
+      interval: 5s
+      timeout: 5s
+      retries: 60
+  event-worker:
+    <<: *app
+    command: [python, -m, event_worker]
+    depends_on:
+      backend: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+  taskiq-worker:
+    <<: *app
+    command: [taskiq, worker, infrastructure.taskiq_broker:broker, application.tasks, --workers, "2", --max-async-tasks, "8", --max-prefetch, "8"]
+    depends_on:
+      backend: {condition: service_healthy}
+      clickhouse: {condition: service_healthy}
+      smtp: {condition: service_started}
+  taskiq-scheduler:
+    <<: *app
+    command: [taskiq, scheduler, infrastructure.taskiq_scheduler:scheduler, application.tasks]
+    depends_on:
+      taskiq-worker: {condition: service_started}
+  frontend:
+    image: carcraft-notifications35-followup-v2-frontend:local
+    build:
+      context: ../../../frontend
+      args:
+        NUXT_PUBLIC_API_BASE: http://localhost:18048
+        NUXT_PUBLIC_YANDEX_METRIKA_ENABLED: "false"
+        NUXT_PUBLIC_VERBOX_ENABLED: "false"
+    environment:
+      PUBLIC_URL: http://localhost:18048
+      NUXT_PUBLIC_API_BASE: http://localhost:18048
+      NUXT_API_INTERNAL_BASE: http://backend:3002
+      NITRO_HOST: 0.0.0.0
+      NITRO_PORT: "3000"
+      NUXT_PUBLIC_YANDEX_METRIKA_ENABLED: "false"
+      NUXT_PUBLIC_VERBOX_ENABLED: "false"
+    depends_on:
+      backend: {condition: service_healthy}
+  nginx:
+    image: nginx:alpine
+    networks: [default, ingress]
+    ports: ["127.0.0.1:18048:80"]
+    volumes:
+      - ./nginx.e2e.conf:/etc/nginx/nginx.conf:ro
+    depends_on: [backend, frontend]
+
+networks:
+  default:
+    internal: true
+  ingress:
+    driver: bridge
+
+volumes:
+  runtime_keys:
+  postgres_data:
+  redis_data:
+  redpanda_data:
+  clickhouse_data:

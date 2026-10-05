@@ -1,0 +1,92 @@
+name: carcraft-22242
+
+x-env: &env
+  PUBLIC_URL: http://carcraft-22242.localhost:18242
+  KAFKA_NOTIFICATION_CONSUMER_GROUP: carcraft-22242
+
+x-runtime: &runtime
+  image: carcraft-22242-backend:local
+  mem_limit: 640m
+  environment: *env
+  volumes: !override
+    - runtime_keys:/runtime-keys:ro
+    - /tmp/carcraft-22242-runtime:/runtime
+    - ./:/e2e:ro
+
+services:
+  init-keys:
+    extends: {file: ../notifications35/compose.yml, service: init-keys}
+    image: carcraft-22242-backend:local
+  postgres:
+    extends: {file: ../notifications35/compose.yml, service: postgres}
+    cpus: 1
+    mem_limit: 512m
+    ports: !override ["127.0.0.1:15242:5432"]
+  redis:
+    extends: {file: ../notifications35/compose.yml, service: redis}
+    mem_limit: 96m
+  redpanda:
+    extends: {file: ../notifications35/compose.yml, service: redpanda}
+    cpus: 1
+    mem_limit: 768m
+    command: [redpanda, start, --overprovisioned, --smp, "1", --memory, 512M, --reserve-memory, 0M, --node-id, "0", --check=false, --kafka-addr, PLAINTEXT://0.0.0.0:9092, --advertise-kafka-addr, PLAINTEXT://redpanda:9092]
+  clickhouse:
+    extends: {file: ../notifications35/compose.yml, service: clickhouse}
+    cpus: 1
+    mem_limit: 1280m
+    volumes:
+      - ../notifications35/clickhouse-bootstrap.xml:/etc/clickhouse-server/config.d/bootstrap.xml:ro
+      - ./clickhouse-limits.xml:/etc/clickhouse-server/config.d/limits.xml:ro
+  smtp:
+    extends: {file: ../notifications35/compose.yml, service: smtp}
+    ports: !override []
+  backend:
+    extends: {file: ../notifications35/compose.yml, service: backend}
+    <<: *runtime
+    cpus: 2
+  event-worker:
+    extends: {file: ../notifications35/compose.yml, service: event-worker}
+    <<: *runtime
+  taskiq-worker:
+    extends: {file: ../notifications35/compose.yml, service: taskiq-worker}
+    <<: *runtime
+    command: [taskiq, worker, infrastructure.taskiq_broker:broker, application.tasks, --workers, "1", --max-async-tasks, "4", --max-prefetch, "4"]
+  taskiq-scheduler:
+    extends: {file: ../notifications35/compose.yml, service: taskiq-scheduler}
+    <<: *runtime
+  frontend:
+    extends: {file: ../notifications35/compose.yml, service: frontend}
+    image: carcraft-22242-frontend:local
+    cpus: 2
+    mem_limit: 384m
+    build:
+      args:
+        NUXT_PUBLIC_API_BASE: http://carcraft-22242.localhost:18242
+    environment:
+      PUBLIC_URL: http://carcraft-22242.localhost:18242
+      NUXT_PUBLIC_API_BASE: http://carcraft-22242.localhost:18242
+  nginx:
+    extends: {file: ../notifications35/compose.yml, service: nginx}
+    ports: !override ["127.0.0.1:18242:80"]
+    mem_limit: 64m
+    volumes: !override
+      - ./nginx.e2e.conf:/etc/nginx/nginx.conf:ro
+  browser-login:
+    extends: {file: ../notifications35/compose.yml, service: backend}
+    <<: *runtime
+    build: !reset null
+    command: [python, /e2e/runtime.py, bootstrap, --execute]
+    healthcheck: !reset null
+    ports: ["127.0.0.1:18243:3003"]
+    networks: [default, ingress]
+
+networks:
+  default: {internal: true}
+  ingress: {driver: bridge}
+
+volumes:
+  runtime_keys:
+  postgres_data:
+  redis_data:
+  redpanda_data:
+  clickhouse_data:

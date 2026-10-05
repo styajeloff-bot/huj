@@ -1,0 +1,5 @@
+**
+!scripts/
+!scripts/e2e/
+!scripts/e2e/storefront-theme/
+!scripts/e2e/storefront-theme/nginx.e2e.conf

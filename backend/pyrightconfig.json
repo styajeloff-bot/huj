@@ -1,0 +1,21 @@
+{
+  "include": [
+    "fastapi"
+  ],
+  "exclude": [
+    "**/.git",
+    "**/.mypy_cache",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/__pycache__",
+    "frontend/node_modules"
+  ],
+  "extraPaths": [
+    "fastapi"
+  ],
+  "venvPath": "fastapi",
+  "venv": ".venv",
+  "pythonVersion": "3.12",
+  "typeCheckingMode": "basic",
+  "useLibraryCodeForTypes": true
+}

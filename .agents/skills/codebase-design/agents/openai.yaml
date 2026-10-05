@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codebase Design"
+  short_description: "Deep-module design for CarCraft"
+  default_prompt: "Design a deep CarCraft module that respects the repository's layer, feature, vocabulary, and architecture contracts."

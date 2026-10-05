@@ -1,0 +1,12 @@
+FROM carcraft-leadgenerator-local-backend:latest
+USER root
+RUN uv pip install --python /app/.venv/bin/python ruff==0.15.20
+# Replace application sources from the dependency image, including obsolete migration files.
+RUN rm -rf /app/application /app/domain /app/infrastructure /app/presentation /app/alembic
+COPY backend/application /app/application
+COPY backend/domain /app/domain
+COPY backend/infrastructure /app/infrastructure
+COPY backend/presentation /app/presentation
+COPY backend/alembic /app/alembic
+COPY backend/main.py backend/event_worker.py backend/pyproject.toml backend/alembic.ini /app/
+USER nonroot

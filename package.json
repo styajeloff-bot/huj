@@ -1,0 +1,11 @@
+{
+  "name": "carcraft-multileasing-platform",
+  "version": "1.0.0",
+  "description": "Лизинговая платформа для дилеров",
+  "scripts": {
+    "build": "cd frontend && bun build",
+    "dev:frontend": "cd frontend && bun dev",
+    "start:frontend": "cd frontend && bun start",
+    "start:express": "echo hello world"
+  }
+}

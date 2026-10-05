@@ -1,0 +1,79 @@
+name: carcraft-warehouse-form-e2e
+x-environment: &environment
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_USER: warehouse_form_e2e
+  DB_PASSWORD: local-e2e-only
+  DB_NAME: warehouse_form_e2e
+  REDIS_URL: redis://redis:6379/0
+  KAFKA_BROKERS: redpanda:9092
+  PUBLIC_URL: http://localhost:18418
+  API_URL: http://backend:3002
+  JWT_KEYS_DIR: /runtime/jwt
+  JWT_ACTIVE_KID: e2e
+  COOKIE_SECURE: "false"
+  COOKIE_SAMESITE: lax
+  MOBILE_ID_ENABLED: "false"
+  RATE_LIMIT_ENABLED: "false"
+  CSRF_ENABLED: "false"
+  ENVIRONMENT: local
+  E2E_BASE_URL: http://localhost:18418
+  ACCESS_TOKEN_EXPIRY_MINUTES: "1440"
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: warehouse_form_e2e
+      POSTGRES_PASSWORD: local-e2e-only
+      POSTGRES_DB: warehouse_form_e2e
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U warehouse_form_e2e -d warehouse_form_e2e"]
+      interval: 2s
+      retries: 30
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 2s
+      retries: 30
+  redpanda:
+    image: redpandadata/redpanda:v24.3.5
+    command: [redpanda, start, --overprovisioned, --smp, "1", --memory, 512M, --reserve-memory, 0M, --check=false, --kafka-addr, PLAINTEXT://0.0.0.0:9092, --advertise-kafka-addr, PLAINTEXT://redpanda:9092]
+  backend:
+    build:
+      context: ../../..
+      dockerfile: scripts/e2e/22286/Dockerfile.backend
+      ssh: [default]
+    image: carcraft-warehouse_form_e2e-backend:local
+    command: [/app/.venv/bin/python, -m, uvicorn, main:app, --host, 0.0.0.0, --port, "3002"]
+    environment: *environment
+    volumes: [runtime:/runtime]
+    depends_on:
+      postgres: {condition: service_healthy}
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, curl, -fsS, http://localhost:3002/api/v1/health]
+      interval: 3s
+      retries: 40
+  frontend:
+    build:
+      context: ../../..
+      dockerfile: scripts/e2e/22286/Dockerfile.frontend
+    image: carcraft-warehouse_form_e2e-frontend:local
+    environment:
+      HOST: 0.0.0.0
+      PORT: "3000"
+      NUXT_API_INTERNAL_BASE: http://backend:3002
+      NUXT_PUBLIC_API_BASE: ""
+      NUXT_PUBLIC_YANDEX_METRIKA_ENABLED: "false"
+      NUXT_PUBLIC_VERBOX_ENABLED: "false"
+  nginx:
+    build:
+      context: ../../..
+      dockerfile: scripts/e2e/storefront-theme/Dockerfile.nginx
+    ports: ["127.0.0.1:18418:80"]
+    depends_on:
+      backend: {condition: service_healthy}
+      frontend: {condition: service_started}
+volumes:
+  runtime:

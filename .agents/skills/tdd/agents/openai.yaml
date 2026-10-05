@@ -1,0 +1,4 @@
+interface:
+  display_name: "Carcraft TDD"
+  short_description: "Implement behavior in focused red-green slices"
+  default_prompt: "Use $tdd to implement this Carcraft change in vertical red-green slices at the seams already approved in the task plan."

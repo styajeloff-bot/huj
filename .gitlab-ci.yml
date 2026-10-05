@@ -1,0 +1,254 @@
+
+include:
+  - project: 'carcraft/devops/cicd-templates'
+    ref: main
+    file: '.build-kaniko-cr-yandex.yml'
+  - project: 'carcraft/devops/cicd-templates'
+    ref: main
+    file: 'security/sast/gitlab-scan.yml'
+  - project: 'carcraft/devops/cicd-templates'
+    ref: main
+    file: 'security/repository/trivy.yml'
+  - project: 'carcraft/devops/cicd-templates'
+    ref: main
+    file: 'security/container/trivy.yml'
+  - project: 'carcraft/devops/cicd-templates'
+    ref: main
+    file: 'security/dast/zaproxy.yml'
+    inputs:
+      address: https://test.multileasing.ru/
+
+stages:
+  - e2e
+  - security-scan
+  - build
+  - image-scan
+  - post-deploy
+
+e2e:special-equipment:
+  stage: e2e
+  image: mcr.microsoft.com/playwright:v1.62.1-noble
+  allow_failure: true
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+    - name: redis:7-alpine
+      alias: redis
+    - name: redpandadata/redpanda:v24.3.5
+      alias: redpanda
+      command:
+        - redpanda
+        - start
+        - --overprovisioned
+        - --smp=1
+        - --memory=512M
+        - --reserve-memory=0M
+        - --check=false
+        - --kafka-addr=0.0.0.0:9092
+        - --advertise-kafka-addr=redpanda:9092
+  variables:
+    KUBERNETES_CPU_REQUEST: 2
+    KUBERNETES_CPU_LIMIT: 4
+    KUBERNETES_MEMORY_REQUEST: 4Gi
+    KUBERNETES_MEMORY_LIMIT: 6Gi
+    POSTGRES_USER: carcraft_e2e
+    POSTGRES_PASSWORD: carcraft_e2e
+    POSTGRES_DB: carcraft_e2e
+    E2E_RUN_ID: "ci-$CI_JOB_ID"
+    E2E_BACKFILL_COMMAND: "bash scripts/e2e/verify-backfill.sh"
+    UV_CACHE_DIR: "$CI_PROJECT_DIR/.cache/uv"
+    BUN_INSTALL_CACHE_DIR: "$CI_PROJECT_DIR/.cache/bun"
+    BUN_VERSION: "1.3.14"
+    BUN_LINUX_X64_SHA256: "951ee2aee855f08595aeec6225226a298d3fea83a3dcd6465c09cbccdf7e848f"
+    BUN_LINUX_AARCH64_SHA256: "a27ffb63a8310375836e0d6f668ae17fa8d8d18b88c37c821c65331973a19a3b"
+    UV_VERSION: "0.9.7"
+    UV_LINUX_X64_SHA256: "b26fcc8dfa1c39b5a5613445af3be3eefda45d9a39359bee271eafe34913583e"
+    UV_LINUX_AARCH64_SHA256: "8b3d31a154673c6d357727d2083a33525b515589d153fa5b5455e1db9e9e6363"
+    GITLAB_CARCRAFT_KNOWN_HOST: "gitlab.carcraft.ru ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIM8o7Dymzrou1iw4BwkhuOTxxfVqBmKij+Yu1aePYvIy"
+  cache:
+    key:
+      files:
+        - backend/uv.lock
+        - frontend/bun.lock
+    paths:
+      - .cache/uv
+      - .cache/bun
+  before_script:
+    - apt-get update && apt-get install -y --no-install-recommends curl git nginx openssh-client unzip && rm -rf /var/lib/apt/lists/*
+    - |
+      set -euo pipefail
+      tool_root="$(mktemp -d)"
+      case "$(uname -m)" in
+        x86_64)
+          bun_arch="x64"
+          bun_sha256="$BUN_LINUX_X64_SHA256"
+          uv_target="uv-x86_64-unknown-linux-gnu"
+          uv_sha256="$UV_LINUX_X64_SHA256"
+          ;;
+        aarch64|arm64)
+          bun_arch="aarch64"
+          bun_sha256="$BUN_LINUX_AARCH64_SHA256"
+          uv_target="uv-aarch64-unknown-linux-gnu"
+          uv_sha256="$UV_LINUX_AARCH64_SHA256"
+          ;;
+        *)
+          echo "Unsupported E2E runner architecture: $(uname -m)" >&2
+          exit 1
+          ;;
+      esac
+      bun_archive="$tool_root/bun-linux-$bun_arch.zip"
+      curl --fail --silent --show-error --location \
+        --output "$bun_archive" \
+        "https://github.com/oven-sh/bun/releases/download/bun-v$BUN_VERSION/bun-linux-$bun_arch.zip"
+      printf '%s  %s\n' "$bun_sha256" "$bun_archive" | sha256sum --check
+      unzip -q "$bun_archive" -d "$tool_root"
+      install -m 755 "$tool_root/bun-linux-$bun_arch/bun" /usr/local/bin/bun
+      uv_archive="$tool_root/$uv_target.tar.gz"
+      curl --fail --silent --show-error --location \
+        --output "$uv_archive" \
+        "https://github.com/astral-sh/uv/releases/download/$UV_VERSION/$uv_target.tar.gz"
+      printf '%s  %s\n' "$uv_sha256" "$uv_archive" | sha256sum --check
+      tar -xzf "$uv_archive" -C "$tool_root"
+      install -m 755 "$tool_root/$uv_target/uv" /usr/local/bin/uv
+      install -m 755 "$tool_root/$uv_target/uvx" /usr/local/bin/uvx
+      bun --version
+      uv --version
+    - install -d -m 700 "$HOME/.ssh"
+    - test -s "$SDK_SSH_KEY"
+    - install -m 600 "$SDK_SSH_KEY" "$HOME/.ssh/id_ed25519"
+    - printf '%s\n' "$GITLAB_CARCRAFT_KNOWN_HOST" >"$HOME/.ssh/known_hosts"
+    - chmod 644 "$HOME/.ssh/known_hosts"
+    - export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/known_hosts"
+    - cd backend && uv sync --locked && cd ..
+    - cd frontend && bun ci && cd ..
+  script:
+    - bash scripts/e2e/run.sh --ci
+  artifacts:
+    when: always
+    expire_in: 14 days
+    reports:
+      junit:
+        - artifacts/e2e/**/junit-*.xml
+        - frontend/test-results/*.xml
+    paths:
+      - artifacts/e2e/**/*
+      - frontend/playwright-report/**/*
+      - frontend/test-results/**/*
+    exclude:
+      - artifacts/e2e/**/*storage-state*.json
+      - artifacts/e2e/**/jwt-keys/**/*
+      - artifacts/e2e/**/runtime.env
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - .gitlab-ci.yml
+        - scripts/e2e/**/*
+        - backend/main.py
+        - backend/application/**/*
+        - backend/domain/**/*
+        - backend/infrastructure/**/*
+        - backend/presentation/**/*
+        - backend/alembic/**/*
+        - backend/scripts/seed_model_showcase_e2e.py
+        - backend/scripts/seed_special_equipment_e2e.py
+        - frontend/features/auth/**/*
+        - frontend/features/specialEquipment/**/*
+        - frontend/features/cart/**/*
+        - frontend/features/calculator/**/*
+        - frontend/features/commerce/**/*
+        - frontend/features/cars/**/*
+        - frontend/features/sectionVisibility/**/*
+        - frontend/features/storefront/**/*
+        - frontend/pages/cart/**/*
+        - frontend/pages/models/**/*
+        - frontend/components/FAQ.vue
+        - frontend/components/TheFooter.vue
+        - frontend/components/TheHeader.vue
+        - frontend/components/ui/Modal.vue
+        - frontend/components/ui/modalIsolation.ts
+        - frontend/components/ui/ToastNotifications.vue
+        - frontend/pages/index.vue
+        - frontend/pages/**/*special-equipment*
+        - frontend/tests/e2e/**/*
+        - frontend/playwright.config.ts
+        - frontend/package.json
+        - frontend/bun.lock
+      when: manual
+    - if: '$CI_COMMIT_BRANCH == "test"'
+      changes:
+        - .gitlab-ci.yml
+        - scripts/e2e/**/*
+        - backend/main.py
+        - backend/application/**/*
+        - backend/domain/**/*
+        - backend/infrastructure/**/*
+        - backend/presentation/**/*
+        - backend/alembic/**/*
+        - backend/scripts/seed_model_showcase_e2e.py
+        - backend/scripts/seed_special_equipment_e2e.py
+        - frontend/features/auth/**/*
+        - frontend/features/specialEquipment/**/*
+        - frontend/features/cart/**/*
+        - frontend/features/calculator/**/*
+        - frontend/features/commerce/**/*
+        - frontend/features/cars/**/*
+        - frontend/features/sectionVisibility/**/*
+        - frontend/features/storefront/**/*
+        - frontend/pages/cart/**/*
+        - frontend/pages/models/**/*
+        - frontend/components/FAQ.vue
+        - frontend/components/TheFooter.vue
+        - frontend/components/TheHeader.vue
+        - frontend/components/ui/Modal.vue
+        - frontend/components/ui/modalIsolation.ts
+        - frontend/components/ui/ToastNotifications.vue
+        - frontend/pages/index.vue
+        - frontend/pages/**/*special-equipment*
+        - frontend/tests/e2e/**/*
+        - frontend/playwright.config.ts
+        - frontend/package.json
+        - frontend/bun.lock
+      when: manual
+    - when: never
+
+build:
+  rules:
+    - when: never
+
+build:frontend:
+  extends:
+    - .build-template
+  variables:
+    DOCKERFILE_PATH: frontend/Dockerfile
+    BUILD_CONTEXT: $CI_PROJECT_DIR/frontend
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main"'
+      changes:
+        - frontend/**/*
+      when: manual
+    - if: '$CI_COMMIT_REF_NAME =~ /^(dev|test|demo)$/'
+      changes:
+        - frontend/**/*
+      when: always
+    - when: never
+
+build:backend:
+  extends:
+    - .build-template
+  variables:
+    DOCKERFILE_PATH: backend/Dockerfile
+    BUILD_CONTEXT: $CI_PROJECT_DIR/backend
+    IMAGE_TAG: ${CR_YANDEX}carcraft-lead-generator-fastapi:$CI_COMMIT_REF_NAME-0.0.$CI_JOB_ID
+    IMAGE_TAG_LATEST: ${CR_YANDEX}carcraft-lead-generator-fastapi:$CI_COMMIT_REF_NAME-latest
+  rules:
+    - if: '$CI_COMMIT_REF_NAME == "main"'
+      changes:
+        - backend/**/*
+      when: manual
+    - if: '$CI_COMMIT_REF_NAME =~ /^(dev|test|demo)$/'
+      changes:
+        - backend/**/*
+      when: always
+    - when: never
+  before_script:
+    - cp $SDK_SSH_KEY backend/id_ed25519

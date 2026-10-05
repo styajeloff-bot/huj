@@ -1,0 +1,336 @@
+# Generated API documentation
+express/openapi.json
+
+# Nuxt build артефакты
+.nuxt/
+.output/
+dist/
+
+# Node.js зависимости
+node_modules/
+express/node_modules/
+
+# Логи
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Диагностические отчеты
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Runtime данные
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Директория для инструментальных библиотек runtime
+lib-cov
+
+# Покрытие тестов
+coverage
+*.lcov
+.nyc_output
+
+# Grunt промежуточное хранилище
+.grunt
+
+# Bower директория зависимостей
+bower_components
+
+# Скомпилированные бинарные аддоны node-waf
+build/Release
+
+# TypeScript кеш
+*.tsbuildinfo
+
+# npm опциональный кеш
+.npm
+
+# eslint кеш
+.eslintcache
+
+# stylelint кеш
+.stylelintcache
+
+# Microbundle кеш
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# REPL история
+.node_repl_history
+
+# Вывод npm pack
+*.tgz
+
+# Yarn файлы
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# Переменные окружения
+.env
+.env.local
+.env.production
+.env.development
+.env.*.local
+scripts/full_import/*.env
+
+# parcel-bundler кеш
+.cache
+.parcel-cache
+
+# Next.js артефакты сборки
+.next
+out
+
+# Nuxt.js артефакты сборки и генерации
+.nuxt
+dist
+.output
+
+# Gatsby файлы
+.cache/
+
+# vuepress сборка
+.vuepress/dist
+
+# vuepress v2.x временные и кеш директории
+.temp
+
+# Docusaurus кеш и сгенерированные файлы
+.docusaurus
+
+# Serverless директории
+.serverless/
+
+# FuseBox кеш
+.fusebox/
+
+# DynamoDB локальные файлы
+.dynamodb/
+
+# TernJS порт файл
+.tern-port
+
+# VSCode настройки
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/
+*.vsix
+
+# IntelliJ IDEA / WebStorm
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# Docker
+docker-compose.override.yml
+postgres_data/
+.scannerwork/
+.sonar/
+.sonarqube/
+
+# Локальные SSL сертификаты
+*.pem
+*.key
+*.crt
+*.cert
+*.p12
+*.pfx
+
+# Секреты и локальные ключи
+.local-secrets/
+**/.local-secrets/
+id_rsa
+id_rsa.pub
+id_dsa
+id_dsa.pub
+id_ecdsa
+id_ecdsa.pub
+id_ed25519
+id_ed25519.pub
+**/id_rsa
+**/id_rsa.pub
+**/id_dsa
+**/id_dsa.pub
+**/id_ecdsa
+**/id_ecdsa.pub
+**/id_ed25519
+**/id_ed25519.pub
+
+# Временные файлы
+tmp/
+temp/
+*.tmp
+*.temp
+
+# База данных SQLite (если используется для разработки)
+*.sqlite
+*.sqlite3
+*.db
+
+# Бэкапы
+*.backup
+*.bak
+*.swp
+*.swo
+
+# Сжатые файлы
+*.zip
+*.tar.gz
+*.rar
+
+# PM2
+.pm2/
+ecosystem.config.js
+
+# Локальные файлы Netlify
+.netlify
+
+# Vercel
+.vercel
+
+# Локальная история VS Code
+.history
+
+# Pnpm
+pnpm-lock.yaml
+
+# Статические ресурсы сборки
+public/build/
+public/hot/
+public/storage/
+storage/*.key
+.vscode
+.qoder
+cars_base_demo
+load_images.py
+
+# Python virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Data files
+*.xlsx
+*.xls
+*.csv
+export_data/
+
+# Backup directories
+*backup*/
+*-backup-*/
+
+# Log files
+cleanup-*.log
+.cursor
+check_images.py
+requirements_check_images.txt
+
+# FastAPI / Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+*.egg-info/
+.eggs/
+*.egg
+FASTAPI_FALSE_POSITIVES/
+fastapi
+playwright/
+
+docker-compose.*
+/docker-compose.loc.yml
+/Dockerfile
+nginx.dev.conf
+.claude
+scripts
+!scripts/
+scripts/*
+!scripts/full_import/
+scripts/full_import/*.env
+scripts/full_import/*.env.*
+!scripts/full_import/*.env.example
+!scripts/full_import/*.sh
+!scripts/e2e/
+!scripts/e2e/**
+migration
+.codex
+express
+.worktrees/
+nginx.conf
+leasing_export/
+
+# Случайно попавшие локальные бинарники
+backend/clickhouse
+
+# Isolated special-equipment E2E runtime and browser reports
+/.e2e-runtime/
+/artifacts/e2e/
+/backend/artifacts/e2e/
+/frontend/test-results/
+/frontend/playwright-report/
+
+# Локальные инструкции агента
+AGENTS.local.md

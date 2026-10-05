@@ -1,0 +1,2 @@
+FROM nginx:1.27-alpine
+COPY scripts/e2e/storefront-theme/nginx.e2e.conf /etc/nginx/conf.d/default.conf

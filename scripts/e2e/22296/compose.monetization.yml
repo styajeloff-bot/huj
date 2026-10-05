@@ -1,0 +1,13 @@
+# A separate Compose project keeps earlier task volumes and fixtures untouched.
+services:
+  init-keys:
+    image: carcraft-22296-monetization-backend:local
+    volumes: [/tmp/carcraft-22296-monetization:/runtime]
+  backend:
+    image: carcraft-22296-monetization-backend:local
+    volumes: [/tmp/carcraft-22296-monetization:/runtime]
+  notification-runtime:
+    image: carcraft-22296-monetization-backend:local
+    volumes: [/tmp/carcraft-22296-monetization:/runtime]
+  frontend:
+    image: carcraft-22296-monetization-frontend:local

@@ -1,0 +1,15 @@
+ARG BACKEND_DEPENDENCY_IMAGE=carcraft-leadgenerator-local-backend:latest
+FROM ${BACKEND_DEPENDENCY_IMAGE}
+USER root
+WORKDIR /app
+RUN rm -rf application domain infrastructure presentation alembic .env
+COPY backend/application /app/application
+COPY backend/domain /app/domain
+COPY backend/infrastructure /app/infrastructure
+COPY backend/presentation /app/presentation
+COPY backend/alembic /app/alembic
+COPY backend/main.py backend/alembic.ini /app/
+COPY scripts/e2e/22398 /e2e
+ENV PYTHONPATH=/app
+ENTRYPOINT []
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "3002"]

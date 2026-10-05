@@ -1,0 +1,5 @@
+.workspace-tabs { display:flex; flex-wrap:wrap; gap:24px; border-bottom:1px solid #e5e7eb; margin-bottom:24px; }
+.workspace-tabs button { padding:8px 4px; border:0; border-bottom:2px solid transparent; background:transparent; color:#6b7280; font-family:inherit; font-size:14px; font-weight:500; line-height:20px; }
+.workspace-tabs button:hover { color:#374151; border-bottom-color:#d1d5db; }
+.workspace-tabs button[aria-selected=true] { color:#2563eb; border-bottom-color:#3b82f6; }
+.workspace-tabs button:focus-visible { outline:2px solid #93c5fd; outline-offset:2px; }

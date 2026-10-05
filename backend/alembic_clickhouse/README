@@ -1,0 +1,35 @@
+# ClickHouse Alembic Migrations
+
+This directory contains Alembic migrations for ClickHouse analytics tables.
+
+## Usage
+
+Generate a new migration:
+
+```bash
+uv run alembic -c alembic_clickhouse.ini revision -m "description"
+```
+
+Apply migrations:
+
+```bash
+uv run alembic -c alembic_clickhouse.ini upgrade head
+```
+
+Downgrade one revision:
+
+```bash
+uv run alembic -c alembic_clickhouse.ini downgrade -1
+```
+
+Show current revision:
+
+```bash
+uv run alembic -c alembic_clickhouse.ini current
+```
+
+## Notes
+
+- ClickHouse uses a synchronous SQLAlchemy engine (`clickhouse+http` dialect).
+- Autogenerate is unreliable for ClickHouse table engines; prefer manual migrations.
+- The DSN is read from `infrastructure.settings.Settings.clickhouse_dsn`.

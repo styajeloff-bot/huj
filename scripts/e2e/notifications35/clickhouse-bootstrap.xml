@@ -1,0 +1,6 @@
+<clickhouse>
+  <!-- Only during empty-fixture migrations 001..007; removed before workers. -->
+  <merge_tree>
+    <allow_dimensions_outside_sorting_key>1</allow_dimensions_outside_sorting_key>
+  </merge_tree>
+</clickhouse>

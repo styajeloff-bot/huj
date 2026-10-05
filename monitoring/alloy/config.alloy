@@ -1,0 +1,416 @@
+// Local-only Docker log collector. Discovery is restricted to containers that
+// explicitly opt in with com.carcraft.observability=true in the compose overlay.
+discovery.docker "carcraft" {
+	host             = "unix:///var/run/docker.sock"
+	refresh_interval = "2s"
+}
+
+discovery.relabel "carcraft" {
+	targets = discovery.docker.carcraft.targets
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_carcraft_observability"]
+		regex         = "true"
+		action        = "keep"
+	}
+
+	rule {
+		source_labels = ["__meta_docker_container_label_com_carcraft_service_name"]
+		target_label  = "service_name"
+	}
+}
+
+loki.source.docker "carcraft" {
+	host    = "unix:///var/run/docker.sock"
+	targets = discovery.relabel.carcraft.output
+	labels  = {
+		cluster     = "local-compose",
+		namespace   = "carcraft-leadgenerator",
+		environment = "local",
+	}
+	forward_to = [loki.process.carcraft.receiver]
+}
+
+loki.process "carcraft" {
+	forward_to = [loki.write.local.receiver]
+
+	// Unknown is deliberate: a parser miss stays visible instead of silently
+	// being counted as INFO.
+	stage.static_labels {
+		values = {
+			level = "unknown",
+		}
+	}
+
+	stage.decolorize { }
+
+	// First-party Python and Nginx events already implement the JSON contract.
+	stage.match {
+		selector = "{service_name=~\"carcraft-api|carcraft-event-worker|carcraft-taskiq-worker|carcraft-taskiq-scheduler|carcraft-nginx\"}"
+
+		stage.json {
+			expressions = {
+				parsed_level   = "level",
+				parsed_message = "message",
+				component      = "component",
+				event          = "event",
+				request_id     = "request_id",
+				correlation_id = "correlation_id",
+				trace_id       = "trace_id",
+				span_id        = "span_id",
+				task_id        = "task_id",
+				task_name      = "task_name",
+				job_id         = "job_id",
+				http_route     = "http_route",
+				http_status    = "http_status_code",
+				duration_ms    = "duration_ms",
+				topic          = "topic",
+				partition      = "partition",
+				offset         = "offset",
+				consumer_group = "consumer_group",
+				result         = "result",
+			}
+		}
+
+		stage.labels {
+			values = {
+				level = "parsed_level",
+			}
+		}
+
+		// High-cardinality context is queryable without creating Loki streams.
+		stage.structured_metadata {
+			values = {
+				message        = "parsed_message",
+				component      = "component",
+				event          = "event",
+				request_id     = "request_id",
+				correlation_id = "correlation_id",
+				trace_id       = "trace_id",
+				span_id        = "span_id",
+				task_id        = "task_id",
+				task_name      = "task_name",
+				job_id         = "job_id",
+				http_route     = "http_route",
+				http_status    = "http_status",
+				duration_ms    = "duration_ms",
+				topic          = "topic",
+				partition      = "partition",
+				offset         = "offset",
+				consumer_group = "consumer_group",
+				result         = "result",
+			}
+		}
+	}
+
+	// Native service pipelines only classify formats they recognize. Anything
+	// new remains level=unknown and appears in the parser-miss panel.
+	stage.match {
+		selector = "{service_name=\"postgres\"} |~ \" (LOG|INFO|NOTICE): \""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"postgres\"} |~ \" WARNING: \""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"postgres\"} |~ \" ERROR: \""
+
+		stage.static_labels {
+			values = {level = "error"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"postgres\"} |~ \" (FATAL|PANIC): \""
+
+		stage.static_labels {
+			values = {level = "critical"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"redis\"} |~ \"^[0-9]+:[A-Z] [^*#]+ [*] \""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"redis\"} |~ \"^[0-9]+:[A-Z] [^*#]+ # \""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"clickhouse\"} |~ \"<(Information|Notice)>\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"clickhouse\"} |~ \"<(Debug|Trace)>\""
+
+		stage.static_labels {
+			values = {level = "debug"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"clickhouse\"} |~ \"<Warning>\""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"clickhouse\"} |~ \"<Error>\""
+
+		stage.static_labels {
+			values = {level = "error"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"clickhouse\"} |~ \"<Fatal>\""
+
+		stage.static_labels {
+			values = {level = "critical"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=~\"redpanda|redpanda-console\"} |~ \"(?i)(^|[ \\\"=])(info|notice)([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=~\"redpanda|redpanda-console\"} |~ \"(?i)(^|[ \\\"=])warn(ing)?([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=~\"redpanda|redpanda-console\"} |~ \"(?i)(^|[ \\\"=])error([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "error"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=~\"redpanda|redpanda-console\"} |~ \"(?i)(^|[ \\\"=])fatal([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "critical"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-frontend\"} |~ \"(?i)(^|[ \\\"=])info([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-frontend\"} |~ \"(?i)(^|[ \\\"=])warn(ing)?([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-frontend\"} |~ \"(?i)(^|[ \\\"=])error([ \\\"=]|$)\""
+
+		stage.static_labels {
+			values = {level = "error"}
+		}
+	}
+
+	// Known startup formats without an explicit JSON envelope. These rules keep
+	// routine process boot output out of parser_miss while leaving genuinely new
+	// formats visible as unknown.
+	stage.match {
+		selector = "{service_name=~\"carcraft-api|carcraft-event-worker|carcraft-taskiq-worker|carcraft-taskiq-scheduler\"} |~ \"^(INFO  [[]|INFO:|[0-9]{4}-[0-9]{2}-[0-9]{2} .* INFO +-)\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=~\"carcraft-api|carcraft-event-worker|carcraft-taskiq-worker|carcraft-taskiq-scheduler\"} |~ \"^(WARNING|WARNING:|[0-9]{4}-[0-9]{2}-[0-9]{2} .* WARNING +-)\""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=~\"carcraft-api|carcraft-event-worker|carcraft-taskiq-worker|carcraft-taskiq-scheduler\"} |~ \"^(ERROR|ERROR:|CRITICAL|CRITICAL:|[0-9]{4}-[0-9]{2}-[0-9]{2} .* (ERROR|CRITICAL) +-)\""
+
+		stage.static_labels {
+			values = {level = "error"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-taskiq-worker\"} |~ \"^(Pid of a main process:|Starting [0-9]+ worker processes[.]|Started process worker-[0-9]+|Stopped process worker-[0-9]+|Workers are scheduled for shutdown[.])\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-nginx\"} |~ \"^(/docker-entrypoint[.]sh:|10-listen-on-ipv6-by-default[.]sh: info:)\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-nginx\"} |~ \"^[0-9]{4}/[0-9]{2}/[0-9]{2} .* [[]((error|crit|alert|emerg))[]] \""
+
+		stage.static_labels {
+			values = {level = "error"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-nginx\"} |~ \"^[0-9]{4}/[0-9]{2}/[0-9]{2} .* [[]warn[]] \""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-frontend\"} |~ \"^([ ]{2}➜ |[$] nuxt dev|[[]nitro[]]|[[]nuxt:tailwindcss[]]|ℹ |●  Nuxt|✔ )\""
+
+		stage.static_labels {
+			values = {level = "info"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-frontend\"} |~ \"^▲ \""
+
+		stage.static_labels {
+			values = {level = "warning"}
+		}
+	}
+
+	stage.match {
+		selector = "{service_name=\"carcraft-frontend\"} |~ \"^[ │▀█▄]*$\""
+
+		stage.drop {
+			expression = ".*"
+		}
+	}
+
+	// Defense in depth. Application formatters must already redact secrets;
+	// these replacements protect legacy/native text while migration is in flight.
+	stage.replace {
+		expression = `(?i)(proxy-authorization[=:"' ]+[^,}\r\n]+|authorization[=:"' ]+[^,}\r\n]+)`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `(?i)(set-cookie[=:"' ]+[^,}\r\n]+|cookie[=:"' ]+[^,}\r\n]+)`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `(?i)((access_token|refresh_token|api_key|secret_key|password|signature|credential|security_token|otp|sms_code|passport)[=:"' ]+[^,}\s]+)`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `(?i)([?&](token|access_token|refresh_token|api_key|signature|x-amz-credential|x-amz-security-token)=([^&\s"]+))`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `(?i)https?://([^/@\s]+)@`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `(?i)/s/([^/?#\s"']+)`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `([A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+[.][A-Za-z]{2,})`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `([+][0-9][0-9 ()-]{8,}[0-9])`
+		replace    = "[REDACTED]"
+	}
+
+	stage.replace {
+		expression = `(?i)((phone|телефон)[=:"' ]+[0-9][0-9 ()+-]{8,}[0-9])`
+		replace    = "[REDACTED]"
+	}
+
+	// PostgreSQL DETAIL and STATEMENT can contain bound parameters, complete
+	// SQL literals, and arbitrary personal data. Retaining their payload is not
+	// safe in a namespace-wide centralized log stream.
+	stage.replace {
+		expression = `(?i)((DETAIL|STATEMENT):[ ]*.*)$`
+		replace    = "[REDACTED]"
+	}
+
+	// Preserve every sanitized non-JSON line as queryable structured metadata.
+	// Application JSON already carries its own message field above.
+	stage.match {
+		selector = "{service_name=~\"postgres|redis|clickhouse|redpanda|redpanda-console|carcraft-frontend|carcraft-api|carcraft-event-worker|carcraft-taskiq-worker|carcraft-taskiq-scheduler|carcraft-nginx\"} !~ \"^[{]\""
+
+		stage.template {
+			source   = "native_message"
+			template = "{{ .Entry }}"
+		}
+
+		stage.structured_metadata {
+			values = {
+				message = "native_message",
+			}
+		}
+	}
+
+	stage.label_keep {
+		values = ["cluster", "namespace", "environment", "service_name", "level"]
+	}
+}
+
+loki.write "local" {
+	endpoint {
+		url = "http://loki:3100/loki/api/v1/push"
+	}
+}

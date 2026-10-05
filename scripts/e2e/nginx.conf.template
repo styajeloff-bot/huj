@@ -1,0 +1,83 @@
+events {
+    worker_connections 256;
+}
+
+http {
+    log_format carcraft '$remote_addr - $remote_user [$time_local] '
+                        '"$request_method $uri $server_protocol" $status $body_bytes_sent '
+                        'request_id=$request_id upstream_addr=$upstream_addr '
+                        'upstream_status=$upstream_status request_time=$request_time';
+    access_log /var/log/nginx/access.log carcraft;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    map $http_cookie $e2e_fault_categories {
+        default 0;
+        "~*(^|;\s*)e2e_fault_categories=1(;|$)" 1;
+    }
+
+    upstream backend {
+        server __BACKEND_HOST__:__BACKEND_PORT__;
+    }
+
+    upstream frontend {
+        server __FRONTEND_HOST__:__FRONTEND_PORT__;
+    }
+
+    server {
+        listen __NGINX_PORT__;
+        server_name localhost;
+        client_max_body_size 300M;
+
+        location = /api/v1/special-equipment/categories {
+            default_type application/json;
+            if ($e2e_fault_categories) {
+                return 503 '{"detail":"E2E categories fault"}';
+            }
+            proxy_pass http://backend/api/v1/special-equipment/categories;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection "";
+        }
+
+        location /api {
+            proxy_pass http://backend/api;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection "";
+        }
+
+        location ^~ /.well-known/ {
+            proxy_pass http://backend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Connection "";
+        }
+
+        location = /sw.js {
+            return 404;
+        }
+
+        location / {
+            proxy_pass http://frontend;
+            proxy_http_version 1.1;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+        }
+    }
+}

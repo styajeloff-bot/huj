@@ -1,0 +1,307 @@
+[project]
+name = "fastapi-gateway"
+version = "1.0.0"
+description = "Carcraft Lead Generator API Gateway"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.30.0",
+    "httpx>=0.27.0",
+    "alembic>=1.13.0",
+    "sqlalchemy>=2.0.0",
+    "python-jose[cryptography]>=3.3.0",
+    "asyncpg>=0.31.0",
+    "pydantic-settings>=2.0.0",
+    "python-multipart>=0.0.9",
+    "mypy>=1.10.0",
+    "greenlet>=3.3.2",
+    "import-linter>=2.11",
+    "pillow>=10.4.0",
+    "aioboto3>=13.0.0",
+    "faststream[kafka]>=0.5.0",
+    "pandas>=2.2",
+    "openpyxl>=3.1",
+    "redis>=5.0",
+    "fastapi-limiter>=0.1.6,<0.2",
+    "pyotp>=2.9",
+    "qrcode[pil]>=7.4",
+    "geoip2>=4.8",
+    "taskiq>=0.11.0",
+    "taskiq-redis>=1.0",
+    "reportlab>=4.2",
+    "markdown>=3.7",
+    "weasyprint>=63.0",
+    "jinja2>=3.1",
+    "clickhouse-connect>=0.8.0",
+    "clickhouse-sqlalchemy>=0.3.2",
+    "prometheus-fastapi-instrumentator>=7.0",
+    "carcraft-bor",
+    "defusedxml>=0.7.1",
+    "fonttools[woff]>=4.59.0",
+]
+
+[dependency-groups]
+dev = [
+    "lizard>=1.21.3",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "fakeredis>=2.23",
+    "ruff>=0.15.13",
+    "types-requests>=2.33.0.20260518",
+    "types-defusedxml>=0.7.0.20260504",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade (modern syntax: `str | None` over `Optional[str]`, etc.)
+    "B",      # flake8-bugbear (mutable defaults, assert as guard, except Exception, ...)
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "RET",    # flake8-return
+    "PIE",    # flake8-pie (misc useful lints)
+    "G",      # flake8-logging-format (no f-strings in logger.* calls)
+    "LOG",    # flake8-logging (logger misuse)
+    "T20",    # flake8-print (no stray print/pprint)
+    "ASYNC",  # flake8-async (sync I/O in async, blocking calls, ...)
+    "S",      # flake8-bandit (security: assert in prod, hardcoded secrets, ...)
+    "BLE",    # flake8-blind-except (bare `except Exception`)
+    "A",      # flake8-builtins (shadowing builtins like `id`, `type`, ...)
+    "ARG",    # flake8-unused-arguments
+    "PTH",    # flake8-use-pathlib
+    "ERA",    # eradicate (dead commented-out code)
+    "PL",     # pylint (includes PLC0415 import-outside-top-level)
+    "TRY",    # tryceratops (exception anti-patterns)
+    "RUF",    # ruff-specific rules
+    "ANN",    # flake8-annotations (missing type hints)
+    "FAST",   # FastAPI-specific lints
+    "DTZ",    # flake8-datetimez (timezone-aware datetimes only)
+    "TCH",    # flake8-type-checking (move type-only imports to TYPE_CHECKING)
+    "TID",    # flake8-tidy-imports (ban relative imports)
+    "PERF",   # perflint
+]
+ignore = [
+    "E501",    # line too long — formatter's job, not linter's
+    "ANN401",  # `Any` allowed (we use it deliberately at boundaries)
+    "TRY003",  # long messages outside exception class — too noisy for our domain errors
+    "TRY300",  # `try`-`else` — stylistic, often hurts readability
+    "PLR0913", # too many arguments — pydantic models trip this constantly
+    "PLR2004", # magic value comparisons — too noisy in tests
+    "SIM108",  # ternary instead of if/else — often less readable
+    "ANN204",  # `__init__ -> None` annotations are low-signal noise
+    "B904",    # explicit exception chaining is too noisy in HTTP adapters
+    "BLE001",  # broad exception handling is used deliberately in task/webhook boundaries
+    "FAST002", # enforcing Annotated-only parameter style is too strict for this repo
+    "PLC0415", # local imports are used intentionally in a few places
+    "RUF001",  # Cyrillic strings are legitimate in this codebase
+    "RUF002",  # Cyrillic docstrings are legitimate in this codebase
+    "RUF003",  # Cyrillic comments are legitimate in this codebase
+    "S101",    # `assert` — disabled here; re-enabled below outside tests
+    "TC001",   # type-only import churn is deferred
+    "TC002",
+    "TC003",
+    "TRY400",  # logger.exception preference is stylistic noise here
+    "TRY401",  # redundant after TRY400
+    "UP042",   # StrEnum migration can be done separately
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests: asserts and magic numbers are normal here
+"tests/**/*.py" = ["S101", "PLR2004", "ANN", "ARG", "S105", "S106", "B017", "ERA001", "S314"]
+# Alembic migrations are auto-generated, don't enforce style
+"alembic/versions/*.py" = ["ALL"]
+"alembic_clickhouse/**/*.py" = ["ALL"]
+# main.py: lifespan/startup logic legitimately mixes concerns
+"main.py" = ["PLR0913", "S104"]
+# FastAPI routers: Path(...)/Query(...) in parameter defaults is idiomatic
+"presentation/**/*.py" = ["B008"]
+"presentation/routers/distributor_analytics.py" = ["ARG001"]
+"infrastructure/clickhouse_readonly.py" = ["ARG001"]
+# Scripts: unused args are normal for CLI tools; commented-out code is WIP
+"scripts/**/*.py" = ["ARG", "TRY203", "ERA001", "BLE001"]
+# CLI/generated-data scripts: stdout progress and generator-local style are intentional.
+"scripts/generate_csv.py" = ["T201", "PTH123", "PERF401"]
+"scripts/generate_dealer_layer.py" = ["T201", "PTH123", "PERF401", "DTZ001", "S311"]
+"scripts/import_all.py" = ["T201", "PTH123"]
+# Task / webhook / consumer boundaries: broad except is used for retry and drop policies
+"application/tasks/**/*.py" = ["BLE001"]
+"application/*_tasks.py" = ["BLE001"]
+"application/leasing_response_notifications.py" = ["BLE001"]
+"infrastructure/messaging/consumers/**/*.py" = ["BLE001"]
+"infrastructure/cache/webhook_replay.py" = ["BLE001"]
+
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.pylint]
+max-args = 8
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+check_untyped_defs = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic", "alembic_clickhouse"]
+
+# ---------------------------------------------------------------------------
+# import-linter: enforce architectural layer dependencies
+# ---------------------------------------------------------------------------
+
+[tool.importlinter]
+root_packages = ["domain", "application", "infrastructure", "presentation"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Domain layer has no dependencies on other layers"
+type = "forbidden"
+source_modules = ["domain"]
+forbidden_modules = ["application", "infrastructure", "presentation"]
+
+[[tool.importlinter.contracts]]
+name = "Application layer does not import Presentation"
+type = "forbidden"
+source_modules = ["application"]
+forbidden_modules = ["presentation"]
+
+[[tool.importlinter.contracts]]
+name = "Infrastructure does not import Presentation"
+type = "forbidden"
+source_modules = ["infrastructure"]
+forbidden_modules = ["presentation"]
+
+[[tool.importlinter.contracts]]
+name = "Layered architecture dependency flow"
+type = "layers"
+layers = [
+    "presentation",
+    "application",
+    "infrastructure",
+    "domain",
+]
+containers = [""]
+
+# ---------------------------------------------------------------------------
+# DB access containment: SQLAlchemy may only be touched inside the
+# repository sublayer of infrastructure. Domain, application, presentation,
+# and even other infrastructure modules (services, auth, proxy, ...) must
+# go through repositories — they receive an AsyncSession but never import
+# sqlalchemy themselves to build queries.
+# ---------------------------------------------------------------------------
+
+[[tool.importlinter.contracts]]
+name = "Domain layer must not touch the database"
+type = "forbidden"
+source_modules = ["domain"]
+forbidden_modules = [
+    "sqlalchemy",
+    "asyncpg",
+    "alembic",
+    "infrastructure",  # domain must not see infrastructure at all
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Application layer must not touch ORM models or DB drivers"
+type = "forbidden"
+source_modules = ["application"]
+forbidden_modules = [
+    "infrastructure.models",
+    "asyncpg",
+    "alembic",
+]
+allow_indirect_imports = true
+# Note: sqlalchemy.ext.asyncio (AsyncSession) is allowed — handlers
+# receive it as a parameter and pass it to repositories. The signal
+# we actually care about is touching ORM models, which is what makes
+# code "build queries instead of calling a repo".
+
+[[tool.importlinter.contracts]]
+name = "Presentation layer must not touch ORM models or repos directly"
+type = "forbidden"
+source_modules = ["presentation"]
+forbidden_modules = [
+    "infrastructure.models",
+    "infrastructure.repositories",
+    "asyncpg",
+    "alembic",
+]
+allow_indirect_imports = true
+# Routers may import AsyncSession via Depends(get_db), but must go
+# through application handlers — never call repos or touch models directly.
+
+[[tool.importlinter.contracts]]
+name = "Only repositories may touch ORM models inside infrastructure"
+type = "forbidden"
+source_modules = [
+    "infrastructure.services",
+    "infrastructure.auth",
+]
+forbidden_modules = [
+    "infrastructure.models",
+]
+allow_indirect_imports = true
+# AsyncSession from sqlalchemy.ext.asyncio is allowed — background
+# services (fiscalization, expiry loop) open their own session via
+# AsyncSessionLocal. The hard rule: no ORM models outside repositories.
+
+# ---------------------------------------------------------------------------
+# Web framework containment: lower layers must not import fastapi/starlette.
+# Closes the gap noted as ISSUES.md #18 / #48 — without this contract the
+# linter happily ignores `fastapi.HTTPException` in infrastructure/auth.py.
+# ---------------------------------------------------------------------------
+
+[[tool.importlinter.contracts]]
+name = "Lower layers must not depend on the web framework"
+type = "forbidden"
+source_modules = ["domain", "application", "infrastructure"]
+forbidden_modules = ["fastapi", "starlette"]
+allow_indirect_imports = true
+
+[tool.uv.sources]
+carcraft-bor = { git = "ssh://git@gitlab.carcraft.ru/carcraft/carcraft-bor.git", rev = "0d7599768c76be454402f4fdf7f3ac573456289a" }
+
+# ---------------------------------------------------------------------------
+# mypy
+# ---------------------------------------------------------------------------
+
+[[tool.mypy.overrides]]
+module = [
+    "jose.*",
+    "sqlalchemy.*",
+    "aioboto3.*",
+    "botocore.*",
+    "PIL.*",
+    "fastapi_limiter.*",
+    "fakeredis.*",
+    "markdown.*",
+    "weasyprint.*",
+    "openpyxl.*",
+    "reportlab.*",
+    "qrcode.*",
+    "pandas.*",
+    "fontTools.*",
+    "clickhouse_sqlalchemy.*",
+    "aiokafka.*",
+    "carcraft_bor.*",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "infrastructure.repositories.*"
+warn_return_any = false
+disallow_any_expr = false

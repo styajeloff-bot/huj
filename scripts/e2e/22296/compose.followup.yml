@@ -1,0 +1,15 @@
+# The original database, bucket and runtime remain available for inspection.
+x-followup-environment: &followup-environment
+  DB_NAME: documentregistry22296_followup
+  S3_BUCKET: documentregistry22296-followup
+
+services:
+  init-keys:
+    environment: *followup-environment
+    volumes: [/tmp/carcraft-22296-e2e-followup:/runtime]
+  backend:
+    environment: *followup-environment
+    volumes: [/tmp/carcraft-22296-e2e-followup:/runtime]
+  notification-runtime:
+    environment: *followup-environment
+    volumes: [/tmp/carcraft-22296-e2e-followup:/runtime]

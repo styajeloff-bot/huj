@@ -1,0 +1,5 @@
+**
+!scripts/
+!scripts/e2e/
+!scripts/e2e/22398/
+!scripts/e2e/22398/nginx.e2e.conf

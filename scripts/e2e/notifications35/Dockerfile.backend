@@ -1,0 +1,14 @@
+# Reuse locally installed private dependencies without copying an SSH key.
+# Fail closed if that dependency image does not match this checkout's lockfile.
+ARG DEPENDENCY_IMAGE=carcraft-leadgenerator-backend:latest
+FROM ${DEPENDENCY_IMAGE}
+USER root
+COPY pyproject.toml uv.lock /tmp/fixture-dependencies/
+RUN cmp /app/uv.lock /tmp/fixture-dependencies/uv.lock \
+ && cmp /app/pyproject.toml /tmp/fixture-dependencies/pyproject.toml
+# Replace source directories inside this disposable image, never host files.
+RUN rm -rf /app/application /app/domain /app/infrastructure /app/presentation \
+ /app/alembic /app/alembic_clickhouse /app/jobs /app/scripts /app/tests /app/__pycache__
+COPY --chown=nonroot:nonroot . /app
+WORKDIR /app
+USER nonroot

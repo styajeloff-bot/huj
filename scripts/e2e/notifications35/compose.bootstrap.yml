@@ -1,0 +1,4 @@
+services:
+  clickhouse:
+    volumes:
+      - ./clickhouse-bootstrap.xml:/etc/clickhouse-server/config.d/notifications35-bootstrap.xml:ro

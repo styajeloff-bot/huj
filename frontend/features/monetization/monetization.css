@@ -1,0 +1,210 @@
+.monetization { color:#111827;font-family:inherit;font-size:14px;min-width:0; }
+.monetization h2 {font-size:20px;font-weight:600;line-height:1.4;margin:0}
+.monetization h3 {font-size:15px;font-weight:700;margin:0}
+.monetization p {margin:6px 0 0}
+.monetization .muted {color:#7c8798}
+.monetization .heading {display:flex;align-items:center;justify-content:space-between;gap:18px;margin-bottom:20px}
+.monetization .card {border:1px solid #e7e9ee;border-radius:8px;background:white;padding:18px 20px;margin-bottom:20px;box-shadow:none}
+.monetization .fields {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.monetization .filters {display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}
+.monetization label {display:block;font-size:12px;font-weight:650;color:#778497}
+.monetization label>span {display:block;margin-bottom:7px}
+.monetization button {cursor:pointer}
+.monetization button:disabled,.monetization input:disabled,.monetization select:disabled {opacity:.5;cursor:not-allowed}
+.monetization .link {color:#2f6fed;background:none;border:0;padding:0;font-weight:600}
+.monetization .actions {display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.monetization .table-wrap {overflow-x:auto;border:1px solid #e2e6ed;border-radius:9px;background:white}
+.monetization table {width:100%;border-collapse:collapse;text-align:left}
+.monetization th {font-size:11px;color:#8b93a3;background:#fafbfc;font-weight:700;text-transform:uppercase;letter-spacing:.05em;padding:12px 16px;white-space:nowrap}
+.monetization td {padding:16px;border-top:1px solid #f0f1f4;vertical-align:top}
+.monetization .badge {display:inline-block;border-radius:20px;padding:4px 11px;font-size:12px;font-weight:600;background:#fff4d8;color:#9a6d1f}
+.monetization .badge.active,.monetization .badge.paid {background:#e7f6ec;color:#218443}
+.monetization .badge.inactive {background:#ffedef;color:#d63c4d}
+.monetization .empty {padding:44px 20px;text-align:center;color:#7c8798}
+.monetization .error {padding:12px 16px;background:#fff1f2;color:#ac253c;border-radius:6px;margin:14px 0}
+.monetization .notice {padding:12px 16px;background:#eff5ff;color:#45608c;border-radius:6px;margin:14px 0}
+.monetization .pagination {display:flex;justify-content:flex-end;align-items:center;gap:14px;margin-top:18px}
+.monetization .row-editor {background:#fafbfe;border:1px solid #e5e9f0;border-radius:7px;padding:16px;margin:12px 0}
+.monetization .row-fields {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.monetization .check {display:flex;align-items:center;gap:8px;font-size:13px}
+.monetization .check input {margin:0}
+.monetization .section-title {display:flex;align-items:center;justify-content:space-between;gap:12px;margin:18px 0 10px}
+.monetization .details {display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px}
+.monetization .details dt {font-size:12px;color:#8190a3;margin-bottom:6px}
+.monetization .details dd {margin:0;font-weight:600;overflow-wrap:anywhere}
+.monetization .financial-line {padding:13px 14px;background:#f7f9fc;border-radius:6px;margin:8px 0}
+.monetization .financial-line.linked {margin-left:24px;background:#fff;border-left:3px solid #dce7ff}
+.monetization .file-list {list-style:none;padding:0;margin:12px 0}
+.monetization .file-list li {padding:8px 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+@media (min-width:768px) and (max-width:1100px) { .monetization .filters,.monetization .row-fields,.monetization .details {grid-template-columns:repeat(2,minmax(0,1fr))} .monetization .heading {align-items:flex-start} }
+.monetization .program-editor {margin:0;max-width:980px;font-family:inherit}
+.monetization .program-editor-heading {display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.monetization .program-editor-heading h2 {font-size:20px;font-weight:600}
+.monetization .back-button {border:0;background:transparent;color:#8b93a3;font-size:22px;padding:4px 0}
+.monetization .program-editor-body {padding:0 0 24px}
+.monetization .program-intro {margin:0 0 20px;font-size:13px;line-height:1.5;color:#8b93a3}
+.monetization .program-details {display:flex;flex-direction:column;gap:16px;padding-bottom:20px;border-bottom:1px solid #eef0f4;margin-bottom:20px}
+.monetization .program-grid {display:grid;gap:16px;align-items:start}
+.monetization .program-grid>* {min-width:0}
+.monetization .program-grid-two,.monetization .condition-columns {grid-template-columns:repeat(2,minmax(0,1fr))}
+.monetization .program-grid-three {grid-template-columns:repeat(3,minmax(0,1fr))}
+.monetization .program-grid-four {grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.monetization .program-grid-five {grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.monetization .field-label {font-size:12px;font-weight:700;color:#6b7280;margin:0 0 6px;text-transform:uppercase}
+.monetization .program-editor label:not(.check),.monetization .program-editor .filter-label {font-size:12px;font-weight:500;color:#6b7280}
+.monetization .program-editor label>span:not(.visually-hidden) {text-transform:uppercase;margin-bottom:6px}
+.monetization .program-editor .filter-label {letter-spacing:normal;margin-bottom:6px}
+.monetization .program-editor .hero-filter-btn {min-height:42px;line-height:20px}
+.monetization .program-editor input:not([type=checkbox]):not([type=radio]),.monetization .program-editor select {line-height:20px}
+.monetization .program-editor .muted {font-size:12px;color:#8b93a3}
+.monetization .program-editor .compatibility-tags {display:flex;gap:6px;flex-wrap:wrap}
+.monetization .program-editor .compatibility-tags .badge {background:#eef0f4;color:#4b5265;border-radius:4px;font-weight:400;font-size:12px;padding:4px 8px}
+.monetization .status-field {border:0;min-width:0;margin:0;padding:0}
+.monetization .status-options {display:flex;gap:16px;min-height:42px;align-items:center;flex-wrap:wrap}
+.monetization .status-options label {display:flex;align-items:center;gap:6px;font-size:14px!important;font-weight:400!important;color:#4b5265!important;white-space:nowrap}
+.monetization .status-options input {accent-color:#2f6fed}
+.monetization .program-editor .sources-heading {font-size:15px;font-weight:700;margin:0 0 4px}
+.monetization .program-editor .sources-intro {font-size:13px;margin:0 0 16px;line-height:1.5}
+.monetization .source-card {border:1px solid #e7e9ee;border-radius:8px;padding:18px;margin-bottom:16px;background:#fafbfc}
+.monetization .source-heading,.monetization .pair-heading {display:flex;align-items:center;justify-content:space-between;gap:12px}
+.monetization .source-heading {margin-bottom:14px}
+.monetization .source-heading h4 {font-size:13px;font-weight:700;color:#4b5265;margin:0}
+.monetization .program-editor .source-field {margin-bottom:16px}
+.monetization .program-editor .source-field>span {font-size:11px;color:#8b93a3}
+.monetization .remove-link {border:0;background:transparent;color:#8b93a3;font-size:12px;padding:0;font-weight:400}
+.monetization .remove-link:hover {color:#d63c4d}
+.monetization .condition-pair {background:#fff;border:1px solid #e7e9ee;border-radius:8px;padding:16px;margin-bottom:12px}
+.monetization .pair-heading {margin-bottom:12px}
+.monetization .pair-heading h4 {margin:0;color:#8b93a3;font-size:12px;font-weight:700}
+.monetization .condition-columns {display:grid;gap:20px}
+.monetization .condition-row {min-width:0}
+.monetization .condition-row h4 {font-size:13px;font-weight:700;color:#4b5265;margin:0 0 2px}
+.monetization .condition-caption {font-size:11px;color:#8b93a3;margin:0 0 10px}
+.monetization .condition-row select {font-size:13px}
+.monetization .condition-calculation {display:flex;flex-direction:column;gap:12px;background:#fafbfc;border:1px solid #eef0f4;border-radius:6px;padding:14px;margin-top:12px}
+.monetization .condition-calculation .filter-label,.monetization .condition-calculation .field-label,.monetization .condition-calculation label>span {font-size:11px;font-weight:400;color:#8b93a3;letter-spacing:normal;text-transform:uppercase}
+.monetization .condition-calculation .hero-filter-btn {font-size:13px;padding:8px 10px;min-height:38px}
+.monetization .condition-calculation input:not([type=checkbox]) {padding:8px 10px;font-size:13px}
+.monetization .condition-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.monetization .calculation-options {display:flex;gap:6px}
+.monetization .calculation-options button {flex:1;border:1px solid #dfe3ea;border-radius:6px;padding:8px 0;background:#fff;color:#4b5265;font-size:12px;font-weight:600;min-height:38px}
+.monetization .calculation-options button[aria-pressed=true] {background:#eef3ff;border-color:#2f6fed;color:#2f6fed}
+.monetization .condition-hint {font-size:11px;color:#8b93a3;margin:0}
+.monetization .condition-calculation .check {font-size:12px;font-weight:400;color:#4b5265}
+.monetization .condition-calculation .check input {width:14px;height:14px;accent-color:#2f6fed}
+.monetization .add-pair {font-size:13px;margin-bottom:8px}
+.monetization .add-source {font-size:14px;margin:0 0 24px}
+.monetization .program-contracts .field-label {margin-bottom:8px}
+.monetization .contract-file-input {display:none!important}
+.monetization .contract-dropzone {border:1px dashed #dfe3ea;border-radius:6px;padding:14px;background:transparent;color:#8b93a3;font-size:13px;width:100%;text-align:center;font-weight:400}
+.monetization .contract-dropzone.dragging,.monetization .contract-dropzone:focus-visible {border-color:#2f6fed;background:#eef3ff;outline:0}
+.monetization .pending-files {list-style:none;padding:0;margin:10px 0}
+.monetization .pending-files li {display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:12px;padding:8px 10px;background:white;border:1px solid #eef0f4;border-radius:6px;margin-bottom:6px}
+.monetization .pending-files li>span {overflow-wrap:anywhere}
+.monetization .program-actions {display:flex;justify-content:flex-end;gap:12px;margin-top:24px;padding-top:20px;border-top:1px solid #eef0f4}
+.monetization .visually-hidden {position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.monetization .program-detail {max-width:980px;margin:0}
+.monetization .program-detail .card {padding:18px 20px;border-color:#e7e9ee;border-radius:8px;margin-bottom:16px}
+.monetization .program-detail .card>h3 {font-size:15px;font-weight:700;margin-bottom:16px}
+.monetization .program-detail .details {gap:16px}
+.monetization .program-detail .details dt {font-size:11px;text-transform:uppercase;color:#8b93a3;margin-bottom:6px}
+.monetization .program-detail .details dd {font-size:14px;font-weight:500;color:#374151}
+.monetization .program-detail .support-details {padding-top:16px;margin-top:16px;border-top:1px solid #eef0f4;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.monetization .program-detail .support-details h4 {font-size:11px;text-transform:uppercase;color:#8b93a3;margin:0 0 8px}
+.monetization .program-detail .support-details .badge {background:#eef0f4;color:#4b5265;border-radius:4px;font-weight:400}
+.monetization .source-badge {display:inline-block;padding:4px 10px;background:#eef3ff;color:#2f6fed;font-size:12px;font-weight:600;border-radius:4px;margin-bottom:16px}
+.monetization .condition-summary {padding:14px;border:1px solid #eef0f4;background:#fafbfc;border-radius:6px;margin-top:10px}
+.monetization .condition-summary h4 {font-size:13px;font-weight:700;margin:0 0 12px;color:#4b5265}
+.monetization .condition-summary dl {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.monetization .program-detail .card>h3.detail-section-title {font-size:12px;color:#8b93a3;text-transform:uppercase;letter-spacing:.04em;margin-bottom:14px}
+.monetization .program-detail .summary-heading {font-size:13px;font-weight:700;margin:0 0 8px}
+.monetization .program-detail .source-badge {border-radius:20px;margin-bottom:14px}
+.monetization .condition-summary .summary-base {grid-column:1/-1}
+.monetization .condition-summary .source-badge {margin:0;font-size:12px;padding:3px 9px}
+.monetization .condition-summary dd.summary-value {font-size:15px;font-weight:700;color:#28313f}
+.monetization .condition-summary .summary-bounds {font-size:12px;color:#8b93a3;margin:10px 0}
+.monetization .condition-summary .badge {font-size:11px;padding:3px 8px}
+.monetization .contracts-heading {margin:24px 0 12px;font-size:17px;font-weight:700}
+.monetization .condition-summary dt {font-size:11px;color:#8b93a3;margin-bottom:4px}
+.monetization .condition-summary dd {font-size:13px;color:#4b5265;margin:0}
+@media (min-width:768px) and (max-width:1100px) {
+  .monetization .program-editor-body {padding:0 0 24px}
+  .monetization .program-grid-three,.monetization .program-grid-four,.monetization .program-grid-five {grid-template-columns:repeat(2,minmax(0,1fr))}
+  .monetization .condition-columns {grid-template-columns:minmax(0,1fr)}
+}
+
+.monetization .programs-list {max-width:1120px}
+.monetization .monetization-list>.heading>div>p {font-size:13px;color:#8b93a3;margin-top:4px}
+.monetization .programs-table {min-width:800px}
+.monetization .deals-table {min-width:1180px}
+.monetization .deals-table th {white-space:normal;min-width:110px}
+.monetization .deals-table td {font-size:13px;color:#4b5265}
+.monetization .deals-table .amount-cell {min-width:170px}
+.monetization .deals-table .amount-cell p:first-child {margin-top:0}
+.monetization .deals-table .amount-cell strong {font-weight:600;white-space:nowrap}
+.monetization .vat-note {color:#8b93a3;font-size:12px;white-space:nowrap}
+.monetization .source-pill {display:inline-block;background:#eef1f6;color:#4b5265;padding:3px 9px;border-radius:12px;font-size:12px;font-weight:600}
+[role="dialog"]:has(> .monetization-deal-modal) {width:min(1120px,calc(100vw - 48px));max-width:1120px}
+.monetization .deal-detail {max-width:none;width:100%;margin:0 auto}
+.monetization .deal-detail>.heading {align-items:flex-start;flex-wrap:wrap;gap:12px}
+.monetization .deal-detail>.heading>.actions {margin-left:auto}
+.monetization .deal-detail>.heading button {font-size:13px;padding:8px 12px}
+.monetization .deal-detail .card {padding:16px;margin-bottom:16px;border-color:#eef0f4}
+.monetization .deal-detail .deal-facts {background:#fafbfc}
+.monetization .deal-detail .details {grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 16px}
+.monetization .deal-detail .details dt {font-size:11px;color:#8b93a3;margin-bottom:4px}
+.monetization .deal-detail .details dd {font-size:13px;font-weight:600;color:#4b5265}
+.monetization .deal-detail>.deal-calculation {margin-bottom:20px}
+.monetization .deal-detail h3 {font-size:12px;font-weight:700;color:#6b7280;text-transform:uppercase;margin-bottom:10px}
+.monetization .deal-amounts {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:20px}
+.monetization .deal-incomes {display:flex;flex-direction:column;gap:12px;min-width:0}
+.monetization .deal-amounts.unlinked-amounts {grid-template-columns:minmax(0,1fr)}
+.monetization .deal-amount {border:1px solid #eef0f4;border-radius:8px;padding:12px;text-align:center;background:#fff;min-width:0}
+.monetization .deal-amount.platform-amount {background:#fafbfc}
+.monetization .deal-amount h4 {font-size:11px;font-weight:400;color:#8b93a3;margin:0 0 6px}
+.monetization .deal-amount>strong {font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.monetization .deal-amount .amount-vat {font-size:11px;color:#8b93a3;margin-top:4px}
+.monetization .deal-amount .clip-note {font-size:11px;color:#b6740c;background:#fff4e0;border-radius:6px;padding:6px 10px;margin-top:8px;text-align:left}
+.monetization .confirmation-line {padding:8px 0;border-bottom:1px solid #eef0f4}
+.monetization .confirmation-line:last-of-type {border-bottom:0}
+.monetization .confirmation-line strong {font-size:13px;font-weight:600}
+.monetization .confirmation-line .muted {font-size:12px;margin-top:4px}
+@media (min-width:768px) and (max-width:1100px) {
+  .monetization .monetization-list>.heading {flex-wrap:wrap}
+}
+
+.monetization .program-breadcrumb {display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:12px;color:#6b7280;margin-bottom:16px}
+.monetization .program-breadcrumb .link {font-weight:400}
+.monetization .summary-visibility {font-size:12px;margin:0 0 10px}
+
+.monetization .income-summary .summary-base {grid-column:auto}
+.monetization .income-summary dl>div:last-child {grid-column:1/-1}
+
+.monetization .input-field,.monetization .select-field {font-weight:400}
+.monetization .calculation-group {border:1px solid #eef0f4;border-radius:8px;padding:16px;margin-top:16px;min-width:0}
+.monetization .calculation-group>h3 {margin:0 0 12px;font-size:13px}
+.monetization .linked-incomes {margin-top:16px;padding-left:16px;border-left:2px solid #e6eaf2}
+.monetization .deal-amount.expense-amount {text-align:left}
+
+.monetization .pair-incomes {display:flex;flex-direction:column;gap:16px;min-width:0}
+.monetization .pair-income + .pair-income {padding-top:16px;border-top:1px solid #e7e9ee}
+.monetization .add-income {align-self:flex-start;font-size:13px}
+.monetization .budget-deferred {margin-top:12px;line-height:1.5}
+
+.monetization .deal-terms-columns {display:grid;grid-template-columns:minmax(0,1fr);gap:12px;text-align:left}
+.monetization .deal-terms-columns.has-new-terms {grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+.monetization .deal-original-terms,.monetization .deal-new-terms {min-width:0}
+.monetization .deal-terms-columns strong {display:block;font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.monetization .deal-new-terms {padding:10px;border:1px solid #bfdbfe;border-radius:6px;background:#eff6ff}
+.monetization .terms-heading {font-size:11px;font-weight:700;color:#64748b;margin:0 0 8px}
+.monetization .deal-new-terms .terms-heading {color:#1d4ed8}
+.monetization .terms-percent {font-size:16px;font-weight:700;overflow-wrap:anywhere}
+.monetization .terms-base,.monetization .terms-description {font-size:11px;line-height:1.45;color:#64748b;margin:4px 0 8px;overflow-wrap:anywhere}
+.monetization .deal-terms-editor label {display:block;font-size:11px;font-weight:600;margin:8px 0 4px}
+.monetization .deal-terms-editor .input-field {box-sizing:border-box;width:100%;min-width:0;padding:8px;font-size:13px}
+.monetization .deal-terms-editor .input-field[aria-invalid="true"] {border-color:#dc2626}
+.monetization .terms-hint {font-size:10px;line-height:1.4;color:#64748b;margin-top:6px;overflow-wrap:anywhere}
+.monetization .terms-error,.monetization .deal-budget-error {font-size:12px;line-height:1.45;margin-top:10px;overflow-wrap:anywhere}
+.monetization .new-terms-badge {background:#dbeafe;color:#1d4ed8}
+.monetization .deal-terms-notice {font-size:12px;line-height:1.5}
+.monetization .deal-terms-success {font-size:13px;color:#166534;margin-bottom:12px}
