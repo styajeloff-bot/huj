@@ -11,6 +11,7 @@
         <p v-if="event.actor_name || event.actor_company_name" class="text-xs text-gray-500">
           {{ [event.actor_name, event.actor_company_name].filter(Boolean).join(' · ') }}
         </p>
+        <p v-if="event.lc_company_name" class="text-sm text-gray-700">Лизинговая компания: {{ event.lc_company_name }}</p>
         <p v-if="event.from_status || event.to_status" class="text-sm text-gray-700">
           Статус: {{ event.from_status ? dealStatusLabel(event.from_status) : '—' }} → {{ event.to_status ? dealStatusLabel(event.to_status) : '—' }}
         </p>

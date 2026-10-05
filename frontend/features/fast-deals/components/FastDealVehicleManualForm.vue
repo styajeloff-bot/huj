@@ -229,10 +229,6 @@ import FastDealCardField from './FastDealCardField.vue'
 import FastDealCardLookupSelect from './FastDealCardLookupSelect.vue'
 
 const VIN_PATTERN = /^[A-HJ-NPR-Z0-9]{17}$/
-const KNOWN_FIELDS = [
-  'category_id', 'mark_id', 'mark_name', 'model_id', 'model_name', 'modification_id', 'modification_name',
-  'trim_id', 'body_color_id', 'body_color_name', 'vin', 'price', 'dealer_company_id',
-]
 
 const props = withDefaults(defineProps<{
   deal: FastDealCard
@@ -274,7 +270,13 @@ const local = reactive<Record<string, string>>({})
 const fixedDealer = computed(() => (ctx.isDD.value ? null : props.deal.dealer_company ?? null))
 
 const errorOf = (field: string): string => local[field] || (props.error?.field === field ? props.error.detail : '')
-const generalError = computed(() => (props.error && !(props.error.field && KNOWN_FIELDS.includes(props.error.field)) ? props.error : null))
+// Inputs that exist for the direction; an error about any other field is shown below the form.
+const RENDERED_FIELDS = computed(() =>
+  ctx.isDD.value
+    ? ['category_id', 'mark_id', 'mark_name', 'model_id', 'model_name', 'modification_id', 'trim_id', 'body_color_id', 'vin', 'price']
+    : ['category_id', 'mark_name', 'model_name', 'modification_name', 'body_color_name', 'vin', 'price', 'dealer_company_id'],
+)
+const generalError = computed(() => (props.error && !(props.error.field && RENDERED_FIELDS.value.includes(props.error.field)) ? props.error : null))
 
 // ----------------------------------------------------------------------- directory chain
 

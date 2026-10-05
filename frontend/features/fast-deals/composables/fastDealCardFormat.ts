@@ -366,9 +366,9 @@ export function vehicleTitle(vehicle: Pick<FastDealVehicle, 'mark_name' | 'model
   return [vehicle.mark_name, vehicle.model_name, vehicle.modification_name, vehicle.trim_name].filter(Boolean).join(' ')
 }
 
-/** Financing amount asked for by the initiator: vehicles total minus the advance. */
+/** Financing amount asked for by the initiator: the server's figure, else vehicles total minus the advance. */
 export function requestedFinancingAmount(card: Pick<FastDealCard, 'vehicles_total' | 'requested_terms'>): MoneyString | null {
-  return subtractMoney(card.vehicles_total, card.requested_terms.down_payment)
+  return card.requested_terms.financing_amount ?? subtractMoney(card.vehicles_total, card.requested_terms.down_payment)
 }
 
 export function termsAreComplete(card: Pick<FastDealCard, 'requested_terms'>): boolean {

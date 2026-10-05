@@ -95,7 +95,6 @@ import FastDealCardField from './FastDealCardField.vue'
 const MAX_FILES = 20
 const MAX_BYTES = 50 * 1024 * 1024
 const OPEN_STATUSES = ['pending_review', 'offer_sent', 'selected_by_dealer']
-const KNOWN_FIELDS = ['kind', 'files', 'addressee_company_ids', 'fast_deal_vehicle_id', 'lc_application_id']
 
 interface KindOption {
   value: FastDealFileKind
@@ -177,8 +176,15 @@ const kindHint = computed(() => {
 })
 
 const errorOf = (field: string): string => (serverError.value?.field === field ? serverError.value.detail : '')
+// Only the fields that are on screen for the chosen kind are shown at their input.
+const renderedFields = computed(() => {
+  const fields = ['kind', 'files']
+  if (kind.value === 'deal_additional' && needsAddressees.value) fields.push('addressee_company_ids')
+  if (kind.value === 'vehicle_offer') fields.push('fast_deal_vehicle_id')
+  return fields
+})
 const generalError = computed(() =>
-  serverError.value && !(serverError.value.field && KNOWN_FIELDS.includes(serverError.value.field)) ? serverError.value : null,
+  serverError.value && !(serverError.value.field && renderedFields.value.includes(serverError.value.field)) ? serverError.value : null,
 )
 
 function onFiles(event: Event) {

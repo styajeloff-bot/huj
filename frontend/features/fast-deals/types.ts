@@ -54,6 +54,7 @@ export interface CompanyBrief {
   id: UUID
   name: string
   inn?: string | null
+  kpp?: string | null
 }
 
 /** The company object selected in `CompanyAutocomplete` (`@select`), sent unchanged. */
@@ -126,6 +127,15 @@ export interface FastDealVehicle {
   purposes: string[]
   regions: string[]
   item_status: 'active' | 'removed' | 'replaced'
+  replaced_by_id?: UUID | null
+  // Directory ids: only the initiator and the DL dealer receive them (to prefill edit forms).
+  product_id?: UUID | null
+  category_id?: UUID | null
+  mark_id?: UUID | null
+  model_id?: UUID | null
+  modification_id?: UUID | null
+  trim_id?: UUID | null
+  body_color_id?: UUID | null
   // Present for the dealer / platform projection only. A leasing company never gets them.
   is_reservable?: boolean
   reserved?: boolean
@@ -180,6 +190,8 @@ export interface FastDealTerms {
   calculated_monthly_payment?: MoneyString | null
   buyout_amount?: MoneyString | null
   total_cost?: MoneyString | null
+  /** Vehicles total minus the advance (requested terms) / the financed amount of the final terms. */
+  financing_amount?: MoneyString | null
 }
 
 export interface FastDealFile {
@@ -204,6 +216,11 @@ export interface FastDealHistoryItem {
   reason?: string | null
   changes?: Record<string, unknown> | null
   created_at: string
+  /** Dealer side only: the invitation the event belongs to. */
+  lc_application_id?: UUID | null
+  lc_company_name?: string | null
+  review_cycle?: number | null
+  deal_version?: number | null
 }
 
 export interface PendingChange {
@@ -237,7 +254,15 @@ export interface FastDealCard {
   status_reason?: string | null
   vehicles: FastDealVehicle[]
   lc_applications: FastDealLcApplication[]
-  group_deals: { id: UUID; display_number: string; status: FastDealStatus; dealer_company?: CompanyBrief | null }[]
+  group_deals: {
+    id: UUID
+    display_number: string
+    status: FastDealStatus
+    dealer_company?: CompanyBrief | null
+    vehicles_total?: MoneyString
+    vehicle_count?: number
+    is_current?: boolean
+  }[]
   files: FastDealFile[]
   assignees: AssigneeOut[]
   history: FastDealHistoryItem[]

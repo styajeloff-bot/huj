@@ -55,7 +55,9 @@
           <input v-model="row.value" type="text" maxlength="255" class="input-field" placeholder="Значение" :aria-label="`Значение условия ${index + 1}`" :disabled="ctx.busy.value" />
           <button type="button" class="px-2 py-2 text-red-600 hover:text-red-700" :disabled="ctx.busy.value" :aria-label="`Убрать условие ${index + 1}`" @click="extras.splice(index, 1)">×</button>
         </div>
-        <p v-if="extrasError" role="alert" class="text-xs text-red-600">{{ extrasError }}</p>
+        <p v-if="extrasError || errorOf('optional_financial_terms')" role="alert" class="text-xs text-red-600">
+          {{ extrasError || errorOf('optional_financial_terms') }}
+        </p>
         <button v-if="extras.length < 10" type="button" class="text-sm text-blue-600 hover:text-blue-700" :disabled="ctx.busy.value" @click="extras.push({ key: '', value: '' })">
           + Добавить условие
         </button>

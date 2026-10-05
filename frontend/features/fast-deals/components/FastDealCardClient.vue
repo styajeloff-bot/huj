@@ -10,6 +10,10 @@
         <dt class="text-gray-500">ИНН</dt>
         <dd class="font-mono text-gray-900">{{ deal.client.inn || '—' }}</dd>
       </div>
+      <div v-if="deal.client.kpp">
+        <dt class="text-gray-500">КПП</dt>
+        <dd class="font-mono text-gray-900">{{ deal.client.kpp }}</dd>
+      </div>
       <div>
         <dt class="text-gray-500">Телефон клиента</dt>
         <dd class="text-gray-900">{{ deal.client_phone || '—' }}</dd>

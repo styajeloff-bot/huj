@@ -2,7 +2,7 @@
   <div class="min-w-0">
     <select
       :id="id"
-      :value="modelValue"
+      v-model="chosen"
       class="select-field"
       :class="error ? 'error' : ''"
       :disabled="disabled || loading || blocked"
@@ -49,6 +49,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ 'update:modelValue': [value: string]; select: [item: LookupItem | null] }>()
 
 const ctx = useFastDealCardContext()
+// `v-model` (not `:value`) so a value that is set before the options arrive is selected once they do.
+const chosen = ref(props.modelValue)
 const items = ref<LookupItem[]>([])
 const loading = ref(false)
 const loadFailed = ref(false)
@@ -89,4 +91,7 @@ function onChange(event: Event) {
 
 onMounted(load)
 watch(() => JSON.stringify([props.kind, props.params]), load)
+watch(() => props.modelValue, value => {
+  chosen.value = value
+})
 </script>

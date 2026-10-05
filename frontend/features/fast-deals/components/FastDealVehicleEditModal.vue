@@ -59,13 +59,8 @@
       </div>
 
       <template v-if="canEditClassification">
-        <FastDealCardField
-          label="Категория"
-          for-id="fast-deal-edit-category"
-          hint="Оставьте пустым, чтобы не менять"
-          :error="errorOf('category_id')"
-        >
-          <FastDealCardLookupSelect id="fast-deal-edit-category" v-model="categoryId" kind="categories" placeholder="Не менять" />
+        <FastDealCardField label="Категория" for-id="fast-deal-edit-category" :error="errorOf('category_id')">
+          <FastDealCardLookupSelect id="fast-deal-edit-category" v-model="categoryId" kind="categories" placeholder="Выберите категорию" />
         </FastDealCardField>
         <FastDealCardField label="Дилер" :error="errorOf('dealer_company_id')">
           <p v-if="fixedDealer" class="text-sm text-gray-900">{{ fixedDealer.name }}</p>
@@ -124,7 +119,7 @@ const markName = ref(props.vehicle.mark_name)
 const modelName = ref(props.vehicle.model_name)
 const modificationName = ref(props.vehicle.modification_name ?? '')
 const colorName = ref(props.vehicle.body_color_name ?? '')
-const categoryId = ref('')
+const categoryId = ref(props.vehicle.category_id ?? '')
 const dealerIds = ref<string[]>(props.vehicle.dealer_company_id ? [props.vehicle.dealer_company_id] : [])
 
 const local = reactive<Record<string, string>>({})
@@ -159,7 +154,7 @@ async function submit() {
     if (colorName.value.trim() !== (props.vehicle.body_color_name ?? '')) body.body_color_name = colorName.value.trim()
   }
   if (canEditClassification) {
-    if (categoryId.value) body.category_id = categoryId.value
+    if (categoryId.value && categoryId.value !== props.vehicle.category_id) body.category_id = categoryId.value
     const dealerId = fixedDealer.value?.id ?? dealerIds.value[0]
     if (dealerId && dealerId !== props.vehicle.dealer_company_id) body.dealer_company_id = dealerId
   }

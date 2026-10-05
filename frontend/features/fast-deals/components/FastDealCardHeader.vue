@@ -64,6 +64,7 @@
           >
             <span class="font-medium">{{ item.display_number }}</span>
             <span v-if="item.dealer_company" class="text-gray-600">{{ item.dealer_company.name }}</span>
+            <span v-if="item.vehicle_count" class="text-gray-500">{{ item.vehicle_count }} поз.</span>
             <span class="rounded-full px-2 py-0.5 text-xs" :class="dealStatusTone(item.status)">{{ dealStatusLabel(item.status) }}</span>
           </NuxtLink>
         </li>

@@ -4,6 +4,7 @@
     title="Программы поддержки"
     :subtitle="`${vehicleTitle(vehicle)} · ${vehicle.vin}`"
     size="3xl"
+    :show-footer="true"
     :closable="!ctx.busy.value"
     :close-on-overlay="!ctx.busy.value"
     @close="emit('close')"

@@ -66,6 +66,10 @@
           {{ formatMoney(deal.final_terms.down_payment) }}
           <span class="block text-xs text-gray-500">{{ formatPercent(deal.final_terms.down_payment_percent) }}</span>
         </dd>
+        <template v-if="deal.final_terms.financing_amount">
+          <dt class="text-gray-500">Сумма финансирования</dt>
+          <dd class="text-right text-gray-900 tabular-nums">{{ formatMoney(deal.final_terms.financing_amount) }}</dd>
+        </template>
         <dt class="text-gray-500">Срок лизинга</dt>
         <dd class="text-right text-gray-900">{{ deal.final_terms.lease_term_months ?? '—' }} мес.</dd>
         <dt class="text-gray-500">Ежемесячный платёж</dt>

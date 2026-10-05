@@ -88,7 +88,7 @@ const progress = ref('')
 const tabs: { key: Tab; label: string }[] = [
   { key: 'vin', label: 'Поиск по VIN' },
   { key: 'table', label: 'Выбор из таблицы' },
-  { key: 'manual', label: 'Добавить вручную' },
+  { key: 'manual', label: 'Ввод вручную' },
 ]
 
 const actionLabel = computed(() => (props.replaceVehicle ? 'Заменить позицию' : 'Добавить в сделку'))

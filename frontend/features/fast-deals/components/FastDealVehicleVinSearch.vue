@@ -161,9 +161,14 @@ const blockedReason = computed(() => {
   return ''
 })
 
-// Errors of the server that belong to this form's inputs are shown at the input; the rest below.
-const FIELD_ERRORS: Record<string, 'vin' | 'price'> = { vin: 'vin', price: 'price' }
-const otherError = computed(() => (props.error && !(props.error.field && props.error.field in FIELD_ERRORS) ? props.error : null))
+// A server error about an input that is on screen is shown at that input; every other error below the form.
+const otherError = computed(() => {
+  const failure = props.error
+  if (!failure) return null
+  if (failure.field === 'vin' && needsVin.value) return null
+  if (failure.field === 'price' && candidate.value?.priceOnRequest) return null
+  return failure
+})
 const serverVinError = computed(() => (props.error?.field === 'vin' ? props.error.detail : ''))
 const serverPriceError = computed(() => (props.error?.field === 'price' ? props.error.detail : ''))
 

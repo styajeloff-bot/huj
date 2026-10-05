@@ -163,8 +163,14 @@ const dealerName = computed(() => (!ctx.isDD.value && !props.deal.dealer_company
 /** The breakdown is absent for a leasing company when it would disclose support. */
 const hasBreakdown = computed(() => props.vehicle.base_price != null)
 const offerFiles = computed(() => props.deal.files.filter(file => file.kind === 'vehicle_offer' && file.fast_deal_vehicle_id === props.vehicle.id))
-/** `vehicle_offer` exists in DD and is uploaded by an invited leasing company only. */
-const canUploadOffer = computed(() => ctx.isDD.value && ctx.party.value === 'leasing' && ctx.can('upload_files'))
+/** `vehicle_offer` exists in DD and is uploaded by a leasing company whose invitation is still open. */
+const OPEN_INVITATION_STATUSES = ['pending_review', 'offer_sent', 'selected_by_dealer']
+const canUploadOffer = computed(
+  () => ctx.isDD.value
+    && ctx.party.value === 'leasing'
+    && ctx.can('upload_files')
+    && OPEN_INVITATION_STATUSES.includes(ctx.ownApplication.value?.status ?? ''),
+)
 const showSupport = computed(
   () => ctx.supportVisible.value
     && (props.vehicle.applied_supports != null || props.vehicle.support_request != null || !!props.vehicle.support_hint),
