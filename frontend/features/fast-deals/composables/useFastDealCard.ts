@@ -150,6 +150,21 @@ export function useFastDealCard(dealId: UUID, companyContext: () => string | und
   const canEditPositionData = computed(() => can('edit') && (party.value === 'initiator' || party.value === 'dealer'))
   /** DD offers a discount only; DL a discount or a markup. */
   const adjustmentTypes = computed<('discount' | 'markup')[]>(() => (isDD.value ? ['discount'] : ['discount', 'markup']))
+  /**
+   * Fields of a position the caller may edit; mirrors the server's rule. The DL dealer corrects only
+   * manual positions; the initiator also the VIN typed for a listing without one and the agreed
+   * price of a request-priced listing.
+   */
+  const editableFields = (vehicle: FastDealVehicle) => {
+    const manual = vehicle.vehicle_source_type === 'manual'
+    const dealer = party.value === 'dealer'
+    return {
+      vin: manual || (!dealer && vehicle.vin_entered_manually),
+      price: manual || (!dealer && vehicle.price_on_request === true),
+      text: manual && isDL.value,
+      classification: manual && isDL.value && party.value === 'initiator',
+    }
+  }
   /** Support belongs to the dealer side; a leasing company never gets support data at all. */
   const dealerSide = computed(() => (isDD.value ? party.value === 'initiator' : party.value === 'dealer'))
   const supportVisible = computed(() => dealerSide.value || party.value === 'platform' || party.value === 'distributor')
@@ -251,6 +266,7 @@ export function useFastDealCard(dealId: UUID, companyContext: () => string | und
     canEditStructure,
     canEditPositionData,
     adjustmentTypes,
+    editableFields,
     dealerSide,
     supportVisible,
     editWillReset,

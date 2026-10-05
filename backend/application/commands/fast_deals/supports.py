@@ -156,7 +156,7 @@ async def handle_apply_support_program(
     if program is None:
         raise FastDealValidationError("Программа поддержки не найдена", field="support_program_id")
 
-    deal = await _begin_dealer_change(session, ctx)
+    deal, advanced = await _begin_dealer_change(session, ctx)
     templates = program.get("compensation_templates") or []
     distributor_id = await access_repo.distributor_of_dealer(session, deal["dealer_company_id"])
     await comp_repo.create_applied_support(
@@ -183,7 +183,9 @@ async def handle_apply_support_program(
         _key(vehicle, "support_program"): {"before": None, "after": offer.name},
         **_price_changes(vehicle, repriced),
     }
-    await bump_and_log(session, deal, cmd.actor, HistoryEvent.SUPPORT_APPLIED, changes=changes)
+    await bump_and_log(
+        session, deal, cmd.actor, HistoryEvent.SUPPORT_APPLIED, changes=changes, version=advanced
+    )
     return {"deal": await build_card(session, cmd.actor, ctx.deal_id)}
 
 
@@ -205,14 +207,16 @@ async def handle_remove_applied_support(
     if await comp_repo.count_compensations_for_support(session, row["id"]):
         raise FastDealStateError("По применённой поддержке уже созданы компенсации")
 
-    deal = await _begin_dealer_change(session, ctx)
+    deal, advanced = await _begin_dealer_change(session, ctx)
     await support_repo.delete_applied_support(session, row["id"])
     deal, repriced = await _reprice(session, ctx)
     changes = {
         _key(vehicle, "support_program"): {"before": row["name"], "after": None},
         **_price_changes(vehicle, repriced),
     }
-    await bump_and_log(session, deal, cmd.actor, HistoryEvent.SUPPORT_REMOVED, changes=changes)
+    await bump_and_log(
+        session, deal, cmd.actor, HistoryEvent.SUPPORT_REMOVED, changes=changes, version=advanced
+    )
     return {"deal": await build_card(session, cmd.actor, ctx.deal_id)}
 
 
@@ -359,14 +363,16 @@ async def handle_apply_approved_support(
     if unaccounted <= 0:
         raise FastDealStateError("По этой позиции нет неучтённой поддержки")
 
-    await _begin_dealer_change(session, ctx)
+    _, advanced = await _begin_dealer_change(session, ctx)
     await support_repo.account_approved_requests(session, vehicle["id"])
     deal, repriced = await _reprice(session, ctx)
     changes = {
         _key(vehicle, "support_accounted"): {"before": None, "after": wire(unaccounted)},
         **_price_changes(vehicle, repriced),
     }
-    await bump_and_log(session, deal, cmd.actor, HistoryEvent.SUPPORT_ACCOUNTED, changes=changes)
+    await bump_and_log(
+        session, deal, cmd.actor, HistoryEvent.SUPPORT_ACCOUNTED, changes=changes, version=advanced
+    )
     return {"deal": await build_card(session, cmd.actor, ctx.deal_id)}
 
 
@@ -377,12 +383,20 @@ def _require_dealer_side(ctx: DealContext) -> None:
         raise FastDealAccessDeniedError("Поддержки доступны только дилеру сделки")
 
 
-async def _begin_dealer_change(session: AsyncSession, ctx: DealContext) -> Record:
-    """Open a price-changing support action: the DD resets, the DL dealer just edits."""
+async def _begin_dealer_change(
+    session: AsyncSession, ctx: DealContext
+) -> tuple[Record, int | None]:
+    """Open a price-changing support action: the DD resets, the DL dealer just edits.
+
+    Returns the editable deal and the version that a reset (or the reopening of a refused
+    deal) has already advanced, else ``None``: the command's own event then describes that
+    version instead of bumping it a second time.
+    """
     ctx.require(Action.EDIT)
-    if ctx.party == Party.INITIATOR:
-        return await lifecycle.prepare_initiator_mutation(session, ctx)
-    return ctx.deal
+    if ctx.party != Party.INITIATOR:
+        return ctx.deal, None
+    deal = await lifecycle.prepare_initiator_mutation(session, ctx)
+    return deal, (deal["version"] if deal["version"] != ctx.deal["version"] else None)
 
 
 async def _reprice(session: AsyncSession, ctx: DealContext) -> tuple[Record, dict[UUID, Record]]:

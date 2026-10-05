@@ -34,6 +34,7 @@ _NOT_FOUND_OWN_STOCK = "Не найдено на ваших складах"
 _NOT_FOUND_PUBLISHED = "Не найдено среди опубликованных объявлений"
 _CLAIMED = "Единица зарезервирована или продана"
 _NO_OWNER = "У объявления не определён владелец склада или продавец"
+_OWNER_NOT_DEALER = "Владелец техники не является действующим дилером"
 
 # The catalog stores up to 32 symbols and is not narrowed to the 17-symbol rule: the
 # lookup finds such a unit and explains why it cannot be registered.
@@ -157,6 +158,9 @@ def _unavailable_reason(row: Record) -> str | None:
         return _CLAIMED
     if row["owner_company_id"] is None:
         return _NO_OWNER
+    # A position is always a dealer's unit: stock of a distributor cannot be registered.
+    if row["owner_company_type"] != "dealer" or row["owner_company_is_active"] is False:
+        return _OWNER_NOT_DEALER
     return None
 
 

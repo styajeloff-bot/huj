@@ -136,6 +136,8 @@ export interface FastDealVehicle {
   modification_id?: UUID | null
   trim_id?: UUID | null
   body_color_id?: UUID | null
+  /** Initiator / dealer / platform only: a request-priced listing whose agreed price the initiator states. */
+  price_on_request?: boolean
   // Present for the dealer / platform projection only. A leasing company never gets them.
   is_reservable?: boolean
   reserved?: boolean

@@ -7,6 +7,7 @@ never produces a payout.
 """
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -21,6 +22,8 @@ from domain.fast_deals.money import ZERO, money
 from infrastructure.repositories import compensation_repository as comp_repo
 from infrastructure.repositories import fast_deal_repository as repo
 from infrastructure.repositories import fast_deal_support_repository as support_repo
+
+logger = logging.getLogger("carcraft-backend")
 
 Record = dict[str, Any]
 
@@ -63,6 +66,17 @@ async def create_compensations_on_confirm(
                     application_id=None,
                     vehicle_id=vehicle["product_id"],
                 )
+            base_amount = _base_amount(
+                base, support=support, vehicle=vehicle, deal=deal, total=total, context=context
+            )
+            if base_amount <= 0:
+                # A zero base (a deal of zero amount, an advance of nothing) has no payout to
+                # calculate, and it must not undo a confirmation that is valid by itself.
+                logger.warning(
+                    "fast_deal_compensation_skipped_zero_base deal_id=%s applied_support_id=%s base=%s",
+                    deal_id, support["id"], base,
+                )
+                continue
             await handle_create_compensation(
                 CreateCompensationCommand(
                     applied_support_id=support["id"],
@@ -73,10 +87,7 @@ async def create_compensations_on_confirm(
                     payer=template["payer"],
                     recipient=template["recipient"],
                     calculation_base=base,
-                    calculation_base_amount=_base_amount(
-                        base, support=support, vehicle=vehicle, deal=deal, total=total,
-                        context=context,
-                    ),
+                    calculation_base_amount=base_amount,
                     value_type=template["value_type"],
                     value=float(template["value"]),
                     min_amount=template.get("min_amount"),

@@ -7,36 +7,11 @@ strings. Static paths are declared before ``/{deal_id}`` to keep them reachable.
 """
 from __future__ import annotations
 
+import logging
 from typing import Annotated, Any
 from urllib.parse import quote
 from uuid import UUID
 
-from application.commands.fast_deals.leasing_terms import (
-    UpdateLeasingTermsCommand,
-    handle_update_leasing_terms,
-)
-from application.commands.fast_deals.options import (
-    SetOptionsCommand,
-    handle_set_options,
-)
-from application.commands.fast_deals.price_adjustment import (
-    PriceAdjustmentCommand,
-    handle_price_adjustment,
-)
-from application.commands.fast_deals.vehicles import (
-    AddVehicleCommand,
-    PatchVehicleCommand,
-    RemoveVehicleCommand,
-    handle_add_vehicle,
-    handle_patch_vehicle,
-    handle_remove_vehicle,
-)
-from application.queries.fast_deals.list_deals import (
-    handle_filter_options,
-    handle_get_fast_deal,
-    handle_list_fast_deals,
-)
-from application.queries.fast_deals.support_programs import handle_support_programs
 from fastapi import (
     APIRouter,
     Depends,
@@ -99,6 +74,18 @@ from application.commands.fast_deals.files import (
     UploadFilesCommand,
     handle_upload_files,
 )
+from application.commands.fast_deals.leasing_terms import (
+    UpdateLeasingTermsCommand,
+    handle_update_leasing_terms,
+)
+from application.commands.fast_deals.options import (
+    SetOptionsCommand,
+    handle_set_options,
+)
+from application.commands.fast_deals.price_adjustment import (
+    PriceAdjustmentCommand,
+    handle_price_adjustment,
+)
 from application.commands.fast_deals.supports import (
     ApplyApprovedSupportCommand,
     ApplySupportProgramCommand,
@@ -111,6 +98,14 @@ from application.commands.fast_deals.supports import (
     handle_remove_applied_support,
     handle_request_support,
 )
+from application.commands.fast_deals.vehicles import (
+    AddVehicleCommand,
+    PatchVehicleCommand,
+    RemoveVehicleCommand,
+    handle_add_vehicle,
+    handle_patch_vehicle,
+    handle_remove_vehicle,
+)
 from application.fast_deals.actor import Actor
 from application.queries.fast_deals.catalog import (
     handle_lookup,
@@ -122,6 +117,12 @@ from application.queries.fast_deals.files import (
     handle_download_archive,
     handle_download_file,
 )
+from application.queries.fast_deals.list_deals import (
+    handle_filter_options,
+    handle_get_fast_deal,
+    handle_list_fast_deals,
+)
+from application.queries.fast_deals.support_programs import handle_support_programs
 from domain.fast_deals.errors import FastDealFileTooLargeError, FastDealValidationError
 from domain.fast_deals.values import MAX_FILE_BYTES, MAX_UPLOAD_FILES, FileKind
 from domain.services.object_storage import ObjectStorage
@@ -158,6 +159,8 @@ from presentation.schemas.fast_deals import (
     VinLookupResponse,
     to_wire,
 )
+
+logger = logging.getLogger("carcraft-backend")
 
 _ROLES = ("dealer", "leasing_company", "distributor", "carcraft_employee")
 
@@ -516,10 +519,17 @@ async def get_fast_deal(deal_id: UUID, user: _User, session: _Session) -> JSONRe
 async def delete_fast_deal(
     deal_id: UUID, user: _User, session: _Session, storage: _Storage, if_match: _IfMatch = None,
 ) -> Response:
-    await handle_delete_fast_deal(
-        DeleteFastDealCommand(actor=_actor(user), deal_id=deal_id, if_match=if_match), session, storage,
+    keys = await handle_delete_fast_deal(
+        DeleteFastDealCommand(actor=_actor(user), deal_id=deal_id, if_match=if_match), session,
     )
     await session.commit()
+    for key in keys:
+        try:
+            await storage.delete(key)
+        except Exception:
+            logger.warning(
+                "fast_deal_storage_cleanup_failed deal_id=%s key=%s", deal_id, key, exc_info=True
+            )
     return Response(status_code=204)
 
 

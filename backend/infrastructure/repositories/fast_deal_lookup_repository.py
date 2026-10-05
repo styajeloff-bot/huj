@@ -689,6 +689,8 @@ class _Units:
             self.city.name.label("warehouse_city"),
             self.owner_id.label("owner_company_id"),
             self.owner.name.label("owner_company_name"),
+            self.owner.company_type.label("owner_company_type"),
+            self.owner.is_active.label("owner_company_is_active"),
             SpecialEquipmentMark.id.label("mark_id"),
             SpecialEquipmentMark.name.label("mark_name"),
             SpecialEquipmentModel.id.label("model_id"),
