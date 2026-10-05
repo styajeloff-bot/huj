@@ -456,3 +456,24 @@ export function toVehicleCandidate(raw: Record<string, unknown> | null | undefin
     reservedReason: asText(raw.reason) || asText(raw.reserved_reason) || null,
   }
 }
+
+// ---------------------------------------------------------------------------- options
+
+/** One equipment or service row of the options editor; the price stays a decimal STRING. */
+export interface OptionRow {
+  code: string
+  name: string
+  price: string
+  comment: string
+}
+
+/** Sum of the valid prices of the rows, in kopecks as a decimal string. */
+export function sumOptionRows(rows: readonly OptionRow[]): MoneyString {
+  let total = BigInt(0)
+  for (const row of rows) {
+    const price = parseMoneyInput(row.price)
+    const minor = price === null ? null : toMinor(price)
+    if (minor !== null) total += minor
+  }
+  return fromMinor(total)
+}

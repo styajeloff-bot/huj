@@ -1319,6 +1319,12 @@ async def release_product_if_unclaimed(
                   WHERE claimed_item.product_id = product.id
                     AND claimed_item.item_status = 'reserved'
               )
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM application_vehicle_allocations AS claimed_allocation
+                  WHERE claimed_allocation.product_id = product.id
+                    AND claimed_allocation.released_at IS NULL
+              )
             RETURNING product.id
             """
         ),

@@ -65,7 +65,7 @@ export const createFastDealsApi = (config: RuntimeConfig, companyContext: () => 
     vehicleCandidates: (query: { vin?: string; warehouse_id?: UUID; mark_id?: UUID; model_id?: UUID; page?: number; page_size?: number }) =>
       request<{ items: Record<string, unknown>[]; total: number; page: number; page_size: number }>(
         `${BASE}/vehicle-candidates`, { query: query as Query }),
-    lookup: (kind: 'leasing-companies' | 'dealers' | 'categories' | 'marks' | 'models' | 'modifications' | 'trims' | 'colors'
+    lookup: (kind: 'leasing-companies' | 'dealers' | 'warehouses' | 'categories' | 'marks' | 'models' | 'modifications' | 'trims' | 'colors'
       | 'equipments' | 'services' | 'purposes' | 'regions' | 'similar-models', query: Query = {}) =>
       request<{ items: LookupItem[] }>(`${BASE}/lookups/${kind}`, { query }),
 

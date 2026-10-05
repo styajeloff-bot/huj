@@ -48,22 +48,25 @@
       </button>
       <button
         @click="setQuickFilter('active')"
+        :disabled="filters.kind === 'fast_deal'"
         :class="filters.status === 'active' ? 'bg-blue-600 text-white' : 'bg-blue-100 text-blue-800 hover:bg-blue-200'"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       >
         Активные
       </button>
       <button 
         @click="setQuickFilter('rejected')"
+        :disabled="filters.kind === 'fast_deal'"
         :class="filters.status === 'rejected' ? 'bg-red-600 text-white' : 'bg-red-100 text-red-800 hover:bg-red-200'"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       >
         Отклонены
       </button>
       <button 
         @click="setQuickFilter('issued')"
+        :disabled="filters.kind === 'fast_deal'"
         :class="filters.status === 'issued' ? 'bg-green-600 text-white' : 'bg-green-100 text-green-800 hover:bg-green-200'"
-        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors"
+        class="px-3 py-1.5 rounded-full text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
       >
         Выданы
       </button>
@@ -74,12 +77,13 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Статус</label>
-          <select v-model="filters.status" @change="fetchApplications" class="select-field">
+          <select v-model="filters.status" @change="fetchApplications" :disabled="filters.kind === 'fast_deal'" class="select-field">
             <option value="">Все статусы</option>
             <option value="active">Активная</option>
             <option value="rejected">Отклонена</option>
             <option value="issued">Выдана</option>
           </select>
+          <p v-if="statusFilterHint" class="mt-1 text-xs text-gray-500" data-testid="application-status-hint">{{ statusFilterHint }}</p>
         </div>
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Поиск</label>
@@ -100,6 +104,7 @@
           </button>
         </div>
       </div>
+      <ApplicationKindFilter v-model="filters.kind" class="mt-4 max-w-xs" @update:model-value="applyFilters" />
       <ApplicationSourceFilter v-model="filters.sources" class="mt-4" @update:model-value="applyFilters" />
     </div>
 
@@ -137,9 +142,10 @@
 
     <!-- Applications list -->
     <div v-else class="space-y-4">
-      <div 
-        v-for="app in visibleApplications"
-        :key="app.id" 
+      <template v-for="app in visibleApplications" :key="app.id">
+      <FastDealApplicationRow v-if="isFastDealRow(app)" :deal="app" />
+      <div
+        v-else
         class="card hover:shadow-lg transition-shadow"
         :class="app.status === 'active' ? 'border-l-4 border-l-blue-500' : ''"
       >
@@ -506,6 +512,7 @@
           </div>
         </div>
       </div>
+      </template>
 
       <!-- Pagination -->
       <div v-if="totalPages > 1" class="flex justify-center mt-6 space-x-2">
@@ -563,6 +570,10 @@ import { formatCommerceMoney } from '~/features/commerce/money'
 import { formatSourcedApplicationNumber as formatApplicationNumber, type SiteApplicationSourceType } from '~/features/applications/sourceType'
 import ApplicationSourceBadge from '~/features/applications/components/ApplicationSourceBadge.vue'
 import ApplicationSourceFilter from '~/features/applications/components/ApplicationSourceFilter.vue'
+import ApplicationKindFilter from '~/features/fast-deals/components/ApplicationKindFilter.vue'
+import FastDealApplicationRow from '~/features/fast-deals/components/FastDealApplicationRow.vue'
+import { isFastDealRow, ordinaryRows, type ApplicationListKind } from '~/features/fast-deals/mergedList'
+import type { FastDealListItem } from '~/features/fast-deals/types'
 import VehicleManagementModal from '~/features/admin/vehicles/components/VehicleManagementModal.vue'
 import LeasingCompaniesModal from '~/features/admin/users/components/LeasingCompaniesModal.vue'
 import ImportProgress from '~/features/admin/shared/components/ImportProgress.vue'
@@ -576,7 +587,10 @@ const router = useRouter()
 const toast = useToast()
 const csvImport = useCsvImport()
 
-const applications = ref<AdminApplication[]>([])
+/** The list holds ordinary applications and fast deals (`kind: 'fast_deal'`) in one order. */
+type AdminListRow = AdminApplication | FastDealListItem
+
+const applications = ref<AdminListRow[]>([])
 const loading = ref(true)
 const error = ref('')
 const currentPage = ref(1)
@@ -587,6 +601,15 @@ const filters = reactive({
   status: '', // Show all applications by default
   search: '',
   sources: [] as SiteApplicationSourceType[],
+  kind: '' as ApplicationListKind | '',
+})
+
+// An ordinary status excludes fast deals on the server; while only fast deals are listed the
+// ordinary status filter is not sent at all.
+const statusFilterHint = computed(() => {
+  if (filters.kind === 'fast_deal') return 'Статус быстрой регистрации выбирается в разделе «Регистрация сделки».'
+  if (filters.status && filters.kind === '') return 'При выборе статуса показываются только обычные заявки, быстрые регистрации скрыты.'
+  return ''
 })
 
 const showLeasingModal = ref(false)
@@ -694,16 +717,17 @@ const fetchApplications = async () => {
       limit: '20'
     })
     
-    if (filters.status) params.append('status', filters.status)
+    if (filters.status && filters.kind !== 'fast_deal') params.append('status', filters.status)
     if (filters.search) params.append('search', filters.search)
     if (filters.sources.length) params.append('source_type', filters.sources.join(','))
+    if (filters.kind) params.append('kind', filters.kind)
 
     const response = await $fetch(`/api/v1/admin/applications?${params}`, {
       baseURL: config.public.apiBase,
       credentials: 'include'
     })
 
-    const data = response as { applications: AdminApplication[]; pagination: { page: number; limit: number; total: number; pages: number } }
+    const data = response as { applications: AdminListRow[]; pagination: { page: number; limit: number; total: number; pages: number } }
     applications.value = data.applications
     totalPages.value = data.pagination.pages
     total.value = data.pagination.total
@@ -737,7 +761,7 @@ const fetchApplicationDetails = async (applicationId: string) => {
           ?? (detail.application.vehicle_price_items || []).map(toCommerceVehicleItem)
         state.itemsCount = detail.application.items_count ?? null
         state.totalItemsPrice = toCommerceMoney(detail.application.total_items_price ?? detail.application.total_amount)
-        const listApplication = applications.value.find(app => app.id === applicationId)
+        const listApplication = ordinaryRows<AdminApplication>(applications.value).find(app => app.id === applicationId)
         if (listApplication) {
           listApplication.pending_price_items_count = detail.application.pending_price_items_count ?? 0
           listApplication.can_assign_leasing_companies = detail.application.can_assign_leasing_companies ?? true
@@ -919,7 +943,8 @@ const onVehiclesSaved = () => {
 }
 
 const exportCsv = async () => {
-  const params = new URLSearchParams({ format: 'csv' })
+  // The export is the ordinary applications export; fast deals are not part of it.
+  const params = new URLSearchParams({ format: 'csv', kind: 'application' })
   if (filters.status) params.append('status', filters.status)
   if (filters.search) params.append('search', filters.search)
   if (filters.sources.length) params.append('source_type', filters.sources.join(','))

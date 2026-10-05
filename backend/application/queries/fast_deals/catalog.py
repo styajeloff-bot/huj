@@ -41,16 +41,15 @@ _LOOKUP_VIN = re.compile(r"^[0-9A-Z-]{1,32}$")
 _MAX_VIN_FILTER = 32
 _MAX_TEXT = 100
 _MAX_PAGE_SIZE = 100
-_DEFAULT_LIMIT = 200
-_MAX_LIMIT = 500
-_COMPANY_LIMIT = 50
+_DEFAULT_LIMIT = 500
+_MAX_LIMIT = 1000
 
 # Similar models: ranked in Python over a bounded candidate set.
 _SIMILAR_DEFAULT = 10
 _SIMILAR_MAX = 50
 _CANDIDATE_CAP = 1000
 _MIN_SIMILARITY = 0.6
-_MIN_CONTAINED_LENGTH = 3
+_MIN_MATCH_LENGTH = 3
 _MAX_FRAGMENT_WORDS = 5
 # Cyrillic letters that look like Latin ones: "КС-45717" is typed with either alphabet.
 _TO_LATIN = str.maketrans("авеёкмнорстух", "abeekmhopctyx")
@@ -283,7 +282,7 @@ def _similarity(typed: str, name: str) -> float:
     if left == right:
         return 1.0
     shorter, longer = sorted((left, right), key=len)
-    if len(shorter) >= _MIN_CONTAINED_LENGTH and shorter in longer:
+    if len(shorter) >= _MIN_MATCH_LENGTH and shorter in longer:
         return 0.85 + 0.15 * len(shorter) / len(longer)
     return SequenceMatcher(None, left, right).ratio()
 
@@ -292,7 +291,9 @@ def _fragments(text: str) -> list[str]:
     """Substrings to look for in model names, in both look-alike alphabets."""
     words = _WORD.findall(text.lower())
     significant = [
-        word for word in words if len(word) >= _MIN_CONTAINED_LENGTH or any(ch.isdigit() for ch in word)
+        word
+        for word in words
+        if len(word) >= _MIN_MATCH_LENGTH or any(ch.isdigit() for ch in word)
     ] or words
     fragments: list[str] = []
     for word in significant[:_MAX_FRAGMENT_WORDS]:
@@ -352,7 +353,7 @@ async def _leasing_companies(
 ) -> list[Record]:
     _require_roles(actor, Role.DEALER, Role.PLATFORM)
     items: list[Record] = await repo.list_leasing_companies(
-        session, q=_text(params), limit=_limit(params, default=_COMPANY_LIMIT)
+        session, q=_text(params), limit=_limit(params)
     )
     return items
 
@@ -369,7 +370,7 @@ async def _dealers(
     items: list[Record] = await repo.list_dealers(
         session,
         q=_text(params),
-        limit=_limit(params, default=_COMPANY_LIMIT),
+        limit=_limit(params),
         distributor_company_id=distributor_id,
     )
     return items

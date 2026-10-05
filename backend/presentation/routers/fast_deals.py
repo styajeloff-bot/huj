@@ -11,11 +11,49 @@ from typing import Annotated, Any
 from urllib.parse import quote
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Header, Query, UploadFile
+from application.commands.fast_deals.leasing_terms import (
+    UpdateLeasingTermsCommand,
+    handle_update_leasing_terms,
+)
+from application.commands.fast_deals.options import (
+    SetOptionsCommand,
+    handle_set_options,
+)
+from application.commands.fast_deals.price_adjustment import (
+    PriceAdjustmentCommand,
+    handle_price_adjustment,
+)
+from application.commands.fast_deals.vehicles import (
+    AddVehicleCommand,
+    PatchVehicleCommand,
+    RemoveVehicleCommand,
+    handle_add_vehicle,
+    handle_patch_vehicle,
+    handle_remove_vehicle,
+)
+from application.queries.fast_deals.list_deals import (
+    handle_filter_options,
+    handle_get_fast_deal,
+    handle_list_fast_deals,
+)
+from application.queries.fast_deals.support_programs import handle_support_programs
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    Header,
+    HTTPException,
+    Query,
+    UploadFile,
+)
 from fastapi.responses import JSONResponse, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.commands.fast_deals.assignees import SetAssigneesCommand, handle_set_assignees
+from application.commands.fast_deals.assignees import (
+    SetAssigneesCommand,
+    handle_set_assignees,
+)
 from application.commands.fast_deals.cancel_deal import (
     CancelFastDealCommand,
     handle_cancel_fast_deal,
@@ -61,15 +99,6 @@ from application.commands.fast_deals.files import (
     UploadFilesCommand,
     handle_upload_files,
 )
-from application.commands.fast_deals.leasing_terms import (
-    UpdateLeasingTermsCommand,
-    handle_update_leasing_terms,
-)
-from application.commands.fast_deals.options import SetOptionsCommand, handle_set_options
-from application.commands.fast_deals.price_adjustment import (
-    PriceAdjustmentCommand,
-    handle_price_adjustment,
-)
 from application.commands.fast_deals.supports import (
     ApplyApprovedSupportCommand,
     ApplySupportProgramCommand,
@@ -82,14 +111,6 @@ from application.commands.fast_deals.supports import (
     handle_remove_applied_support,
     handle_request_support,
 )
-from application.commands.fast_deals.vehicles import (
-    AddVehicleCommand,
-    PatchVehicleCommand,
-    RemoveVehicleCommand,
-    handle_add_vehicle,
-    handle_patch_vehicle,
-    handle_remove_vehicle,
-)
 from application.fast_deals.actor import Actor
 from application.queries.fast_deals.catalog import (
     handle_lookup,
@@ -101,12 +122,6 @@ from application.queries.fast_deals.files import (
     handle_download_archive,
     handle_download_file,
 )
-from application.queries.fast_deals.list_deals import (
-    handle_filter_options,
-    handle_get_fast_deal,
-    handle_list_fast_deals,
-)
-from application.queries.fast_deals.support_programs import handle_support_programs
 from domain.fast_deals.errors import FastDealFileTooLargeError, FastDealValidationError
 from domain.fast_deals.values import MAX_FILE_BYTES, MAX_UPLOAD_FILES, FileKind
 from domain.services.object_storage import ObjectStorage
@@ -218,7 +233,11 @@ def _attachment(filename: str) -> str:
 async def vin_lookup(
     user: _User, session: _Session, vin: Annotated[str, Query(min_length=1, max_length=64)],
 ) -> JSONResponse:
-    result = await handle_vin_lookup(_actor(user), vin, session)
+    try:
+        result = await handle_vin_lookup(_actor(user), vin, session)
+    except FastDealValidationError as exc:
+        # An unusable VIN is a malformed lookup request, not a form-field error.
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return JSONResponse(content=to_wire(result))
 
 
@@ -237,6 +256,7 @@ async def vin_lookup(
 async def list_fast_deals(
     user: _User,
     session: _Session,
+    *,
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
     number: str | None = None,
@@ -334,26 +354,29 @@ async def vehicle_candidates(
     "/lookups/{kind}",
     summary="Справочники формы сделки",
     description=(
-        "`kind`: leasing-companies, dealers, categories, marks, models, modifications, trims, "
-        "colors, equipments, services, purposes, regions, similar-models. Параметры: `q`, "
-        "`category_id`, `mark_id`, `model_id`, `modification_id`."
+        "`kind`: leasing-companies, dealers, warehouses, categories, marks, models, modifications, "
+        "trims, colors, equipments, services, purposes, regions, similar-models. Параметры: `q`, "
+        "`category_id`, `mark_id`, `model_id`, `modification_id`, `applicability`, `limit`."
     ),
 )
 async def lookups(
     kind: str,
     user: _User,
     session: _Session,
+    *,
     q: str | None = None,
     category_id: UUID | None = None,
     mark_id: UUID | None = None,
     model_id: UUID | None = None,
     modification_id: UUID | None = None,
+    applicability: Annotated[str | None, Query(pattern="^(body|interior)$")] = None,
+    limit: Annotated[int | None, Query(ge=1, le=1000)] = None,
 ) -> JSONResponse:
     params = {
         key: value
         for key, value in {
             "q": q, "category_id": category_id, "mark_id": mark_id, "model_id": model_id,
-            "modification_id": modification_id,
+            "modification_id": modification_id, "applicability": applicability, "limit": limit,
         }.items()
         if value is not None
     }
@@ -961,6 +984,7 @@ async def upload_files(
     user: _User,
     session: _Session,
     storage: _Storage,
+    *,
     kind: Annotated[str, Form()],
     files: Annotated[list[UploadFile], File()],
     addressee_company_ids: Annotated[list[UUID] | None, Form()] = None,

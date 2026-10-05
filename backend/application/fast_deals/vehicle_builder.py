@@ -16,7 +16,6 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.fast_deals.pricing import priced_columns
 from domain.fast_deals import catalog_rules, pricing
 from domain.fast_deals.errors import FastDealConflictError, FastDealValidationError
 from domain.fast_deals.money import ZERO, money, nonnegative_money, wire
@@ -41,12 +40,12 @@ _LEASING_MANUAL_FIELDS = frozenset(
         "body_color_name", "vin", "price", "category_id", "dealer_company_id",
     }
 )
-# What a position may be edited with, by who edits and what the position is.
-_PRODUCT_PATCH_FIELDS = frozenset({"vin", "price"})
+# What a position may be edited with, by who edits and what the position is. A catalog
+# unit allows its manually typed VIN and the agreed price of a request-priced listing.
 _DEALER_MANUAL_PATCH_FIELDS = frozenset(
     {
-        "vin", "price", "category_id", "mark_id", "model_id", "modification_id", "mark_name",
-        "model_name", "body_color_id",
+        "vin", "price", "category_id", "mark_id", "model_id", "modification_id", "trim_id",
+        "mark_name", "model_name", "body_color_id",
     }
 )
 _LEASING_MANUAL_PATCH_FIELDS = frozenset(
@@ -338,6 +337,13 @@ def _catalog_base_price(product: Mapping[str, Any], explicit: Any) -> Decimal:
     return base
 
 
+def _is_visible(product: Mapping[str, Any], *, dd: bool, initiator: UUID) -> bool:
+    """A dealer sees only its own stock; a leasing company any published listing."""
+    if dd:
+        return bool(product["owner_company_id"] == initiator)
+    return bool(product["publication_status"] == "published")
+
+
 async def _product_position(
     session: AsyncSession, deal: Mapping[str, Any], body: Mapping[str, Any]
 ) -> Record:
@@ -347,9 +353,7 @@ async def _product_position(
     product: Record | None = await catalog_repo.get_product(session, product_id)
     initiator = deal["initiator_company_id"]
     # A foreign or unpublished listing is indistinguishable from a missing one.
-    if product is None or (
-        product["owner_company_id"] != initiator if dd else product["publication_status"] != "published"
-    ):
+    if product is None or not _is_visible(product, dd=dd, initiator=initiator):
         raise FastDealValidationError(
             "Не найдено на ваших складах" if dd else "Объявление не найдено", field="product_id"
         )
@@ -567,19 +571,21 @@ async def patch_columns(
         updates["vin"] = vin
     if "price" in fields:
         updates["base_price"] = pricing.manual_base_price(fields["price"])
-    if _CHAIN_FIELDS & fields.keys():
-        updates.update(
-            await resolve_dealer_chain(
-                session,
-                mark_id=_uuid(fields.get("mark_id"), "mark_id"),
-                model_id=_uuid(fields.get("model_id"), "model_id"),
-                modification_id=_uuid(fields.get("modification_id"), "modification_id"),
-                trim_id=None,
-                mark_name=fields.get("mark_name"),
-                model_name=fields.get("model_name"),
+    manual = vehicle["vehicle_source_type"] == VehicleSource.MANUAL
+    if manual and deal["source_type"] == SourceType.DEALER_TO_LEASING:
+        if _CHAIN_FIELDS & fields.keys():
+            updates.update(
+                await resolve_dealer_chain(
+                    session,
+                    mark_id=_uuid(fields.get("mark_id"), "mark_id"),
+                    model_id=_uuid(fields.get("model_id"), "model_id"),
+                    modification_id=_uuid(fields.get("modification_id"), "modification_id"),
+                    trim_id=_uuid(fields.get("trim_id"), "trim_id"),
+                    mark_name=fields.get("mark_name"),
+                    model_name=fields.get("model_name"),
+                )
             )
-        )
-    elif vehicle["vehicle_source_type"] == VehicleSource.MANUAL:
+    elif manual:
         _merge_text_fields(updates, fields)
     if "category_id" in fields:
         updates.update(
@@ -602,7 +608,7 @@ async def patch_columns(
     changed = {name: value for name, value in updates.items() if vehicle.get(name) != value}
     if not changed:
         return {}
-    if vehicle["vehicle_source_type"] == VehicleSource.MANUAL:
+    if manual:
         changed["catalog_snapshot"] = manual_snapshot({**vehicle, **changed})
     return changed
 
@@ -627,12 +633,12 @@ def _patch_allowed(
     if party == Party.DEALER:
         return _DL_DEALER_PATCH_FIELDS if manual else frozenset()
     if not manual:
-        allowed = set()
+        allowed: set[str] = set()
         if vehicle["vin_entered_manually"]:
             allowed.add("vin")
         if (vehicle.get("catalog_snapshot") or {}).get("price_on_request"):
             allowed.add("price")
-        return frozenset(allowed) & _PRODUCT_PATCH_FIELDS
+        return frozenset(allowed)
     if deal["source_type"] == SourceType.DEALER_TO_LEASING:
         return _DEALER_MANUAL_PATCH_FIELDS
     return _LEASING_MANUAL_PATCH_FIELDS
@@ -684,7 +690,8 @@ async def _dictionary_values(
         value = _required_text(raw, field, "Пустое значение справочника")
         if value not in unique:
             unique.append(value)
-    unknown = sorted(unique_value for unique_value in unique if unique_value not in await lookup(session, unique))
+    known = await lookup(session, unique)
+    unknown = [value for value in unique if value not in known]
     if unknown:
         raise FastDealValidationError(
             f"Неизвестные значения справочника: {', '.join(unknown)}", field=field

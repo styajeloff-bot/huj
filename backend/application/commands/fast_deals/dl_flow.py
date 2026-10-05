@@ -176,6 +176,10 @@ async def _split_and_send(
         return [await _send_part(session, ctx.actor, single)]
 
     plans = await _plan_parts(session, deal, groups)
+    # One sorted lock over every part's units: concurrent multi-dealer sends cannot deadlock.
+    await reservation.lock_products(
+        session, [dict(item) for _, items in groups for item in items]
+    )
     first, *others = plans
     # The terms of every part come from the same original deal, computed before any write.
     original: Record = await repo.update_deal(
