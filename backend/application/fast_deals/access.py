@@ -157,9 +157,13 @@ async def resolve_party(
     elif actor.role == Role.DISTRIBUTOR:
         dealer = deal["dealer_company_id"]
         if (
-            sent
-            and dealer is not None
+            dealer is not None
             and await access_repo.distributor_of_dealer(session, dealer) == company
+            and (
+                sent
+                # A request addressed to it opens even a draft to the distributor.
+                or await access_repo.distributor_has_request(session, deal["id"], company)
+            )
         ):
             party = Party.DISTRIBUTOR
     return party, own

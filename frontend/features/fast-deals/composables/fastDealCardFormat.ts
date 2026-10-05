@@ -387,14 +387,6 @@ export function lookupText(item: LookupItem, ...keys: string[]): string {
   return ''
 }
 
-export function lookupId(item: LookupItem, ...keys: string[]): UUID | '' {
-  for (const key of keys) {
-    const value = item[key]
-    if (typeof value === 'string' && value) return value
-  }
-  return ''
-}
-
 export const lookupName = (item: LookupItem): string =>
   lookupText(item, 'name', 'display_name', 'title', 'equipment_display_name', 'service_display_name', 'purpose_name', 'region_name') || lookupText(item, 'code', 'id')
 
@@ -407,15 +399,20 @@ export const lookupCode = (item: LookupItem): string =>
 export interface VehicleCandidate {
   id: UUID
   vin: string
-  noVin: boolean
-  onOrder: boolean
+  /** A listing without VIN or «под заказ»: the user types the VIN, nothing is reserved. */
+  requiresManualVin: boolean
   title: string
-  warehouseId: UUID | null
   warehouseName: string | null
+  ownerName: string | null
+  /** Agreed price of a fixed-price listing; `null` for «цена по запросу». */
   price: MoneyString | null
   priceOnRequest: boolean
+  /** Held by any claim (reserve, purchase, another deal). */
   reserved: boolean
-  reservedReason: string | null
+  /** The server's verdict: may this unit become a position now. */
+  selectable: boolean
+  /** Why it cannot (shown instead of hiding the unit). */
+  reason: string | null
 }
 
 function asText(value: unknown): string {
@@ -424,40 +421,38 @@ function asText(value: unknown): string {
   return ''
 }
 
-function nested(raw: Record<string, unknown>, key: string): Record<string, unknown> | null {
-  const value = raw[key]
-  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : null
-}
-
-/** Tolerant reader of a catalog unit as returned by VIN lookup and the candidates table. */
+/** Reader of a catalog unit as `handle_vin_lookup` / `handle_vehicle_candidates` present it. */
 export function toVehicleCandidate(raw: Record<string, unknown> | null | undefined): VehicleCandidate | null {
   if (!raw) return null
-  const id = asText(raw.id) || asText(raw.product_id)
+  const id = asText(raw.id)
   if (!id) return null
   const vin = asText(raw.vin).toUpperCase()
-  const warehouse = nested(raw, 'warehouse')
-  const title = asText(raw.title)
-    || [raw.mark_name ?? raw.mark, raw.model_name ?? raw.model, raw.modification_name ?? raw.modification]
-      .map(asText).filter(Boolean).join(' ')
-    || asText(raw.name)
-  const price = asText(raw.special_price) || asText(raw.price)
+  const title = [raw.mark_name, raw.model_name, raw.modification_name, raw.trim_name].map(asText).filter(Boolean).join(' ')
+  const warehouse = [asText(raw.warehouse_name), asText(raw.warehouse_city)].filter(Boolean).join(', ')
+  const reserved = raw.reserved === true
+  const price = asText(raw.base_price) || asText(raw.special_price) || asText(raw.price)
   return {
     id,
     vin,
-    noVin: raw.no_vin === true || !vin,
-    onOrder: raw.sale_status === 'on_order',
+    requiresManualVin: raw.requires_manual_vin === true || !vin,
     title: title || 'Техника без названия',
-    warehouseId: asText(raw.warehouse_id) || (warehouse ? asText(warehouse.id) : '') || null,
-    warehouseName: asText(raw.warehouse_name) || asText(raw.warehouse_address)
-      || (warehouse ? asText(warehouse.name) || asText(warehouse.address) : '') || null,
+    warehouseName: warehouse || null,
+    ownerName: asText(raw.owner_company_name) || null,
     price: price || null,
     priceOnRequest: raw.price_on_request === true,
-    reserved: raw.reserved === true || raw.is_reserved === true,
-    reservedReason: asText(raw.reason) || asText(raw.reserved_reason) || null,
+    reserved,
+    selectable: raw.selectable !== false && !reserved,
+    reason: asText(raw.reason) || null,
   }
 }
 
 // ---------------------------------------------------------------------------- options
+
+/** A checkbox of the purposes / regions lists: the stored directory code and its display name. */
+export interface ChecklistEntry {
+  value: string
+  label: string
+}
 
 /** One equipment or service row of the options editor; the price stays a decimal STRING. */
 export interface OptionRow {

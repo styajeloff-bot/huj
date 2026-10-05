@@ -245,6 +245,13 @@ def _offer_view(offer: Record) -> Record:
     return view
 
 
+def _visible_invitations(ctx: DealContext) -> list[Record]:
+    """An invited leasing company sees its own invitation only."""
+    if ctx.party == Party.LEASING:
+        return [ctx.lc_application] if ctx.lc_application is not None else []
+    return list(ctx.lc_applications)
+
+
 def _invitation_views(
     ctx: DealContext,
     briefs: Mapping[UUID, Record],
@@ -252,10 +259,7 @@ def _invitation_views(
 ) -> list[Record]:
     """Invitations of the current cycle as this party may see them."""
     party = ctx.party
-    if party == Party.LEASING:
-        invitations = [ctx.lc_application] if ctx.lc_application is not None else []
-    else:
-        invitations = list(ctx.lc_applications)
+    invitations = _visible_invitations(ctx)
     views: list[Record] = []
     for item in invitations:
         offer = offers.get(item["current_offer_id"]) if item["current_offer_id"] else None
@@ -378,16 +382,14 @@ async def _group_deals(session: AsyncSession, ctx: DealContext) -> list[Record]:
             "id": row["id"],
             "display_number": row["display_number"],
             "status": row["status"],
-            "dealer_company": company_brief(
-                {
-                    row["dealer_company_id"]: {
-                        "name": row["dealer_company_name"],
-                        "inn": row["dealer_company_inn"],
-                    }
+            "dealer_company": (
+                None
+                if row["dealer_company_id"] is None
+                else {
+                    "id": row["dealer_company_id"],
+                    "name": row["dealer_company_name"],
+                    "inn": row["dealer_company_inn"],
                 }
-                if row["dealer_company_id"] is not None
-                else {},
-                row["dealer_company_id"],
             ),
             "vehicles_total": row["vehicles_total"],
             "vehicle_count": row["vehicle_count"],
@@ -425,11 +427,8 @@ async def build_card(session: AsyncSession, actor: Actor, deal_id: UUID) -> Reco
     company_ids.update(item["leasing_company_id"] for item in invitations)
     briefs: dict[UUID, Record] = await access_repo.company_briefs(session, list(company_ids))
 
-    visible_invitations = (
-        [ctx.lc_application] if party == Party.LEASING and ctx.lc_application else ctx.lc_applications
-    )
     offer_rows: list[Record] = await repo.list_offers(
-        session, [item["id"] for item in visible_invitations]
+        session, [item["id"] for item in _visible_invitations(ctx)]
     )
     offers = {item["id"]: item for item in offer_rows}
 

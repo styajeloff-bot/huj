@@ -449,9 +449,7 @@ async def _dealer_manual_position(
     return values
 
 
-async def _leasing_manual_position(
-    session: AsyncSession, deal: Mapping[str, Any], body: Mapping[str, Any]
-) -> Record:
+async def _leasing_manual_position(session: AsyncSession, body: Mapping[str, Any]) -> Record:
     """DL manual position: text data, a directory category and an explicit dealer."""
     _reject_unsupported(body, _LEASING_MANUAL_FIELDS, "ручной позиции лизинговой компании")
     dealer_id = _required_uuid(
@@ -512,7 +510,7 @@ async def build_position(
         parts = await (
             _dealer_manual_position(session, deal, body)
             if dd
-            else _leasing_manual_position(session, deal, body)
+            else _leasing_manual_position(session, body)
         )
         dealer_field = "dealer_company_id"
     else:

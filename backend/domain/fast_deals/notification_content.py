@@ -186,7 +186,7 @@ def _party(label: str, name: Any) -> str:
 
 
 def _plain(value: Any) -> str:
-    if value is None or value == "" or value == []:
+    if value is None or value in ("", []):
         return "—"
     if isinstance(value, list):
         return ", ".join(
@@ -211,12 +211,12 @@ _CHANGE_LABELS = {
     "item_status": "Статус позиции",
 }
 _ITEM_STATUS = {"active": "активна", "removed": "удалена", "replaced": "заменена"}
-_SUPPORT_OUTCOME = {
+_SUPPORT_OUTCOME: dict[str, str] = {
     SupportRequestStatus.APPROVED: "согласовал",
     SupportRequestStatus.PRE_APPROVED: "предварительно согласовал",
     SupportRequestStatus.CANCELLED: "отклонил",
 }
-_SUPPORT_STATUS = {
+_SUPPORT_STATUS: dict[str, str] = {
     SupportRequestStatus.REQUESTED: "Запрошено",
     SupportRequestStatus.PRE_APPROVED: "Предварительно согласовано",
     SupportRequestStatus.APPROVED: "Согласовано",
@@ -249,7 +249,7 @@ def _change_line(change: Mapping[str, Any]) -> str:
 
 # ------------------------------------------------------------------------------ wording
 
-def _headline(  # noqa: PLR0911, PLR0912, C901 - one flat table of wordings
+def _headline(  # noqa: PLR0911, PLR0912 - one flat table of wordings
     event: NotificationEvent, relation: str | None
 ) -> tuple[str, str]:
     """Title and first sentence of an event, for its scope and recipient relation."""

@@ -81,7 +81,7 @@
 import { computed, onMounted, ref } from 'vue'
 import Modal from '~/components/ui/Modal.vue'
 import { useFastDealCardContext, type ActionFailure } from '../composables/useFastDealCard'
-import { lookupName, parseMoneyInput, vehicleTitle, type OptionRow } from '../composables/fastDealCardFormat'
+import { lookupCode, lookupName, parseMoneyInput, vehicleTitle, type ChecklistEntry, type OptionRow } from '../composables/fastDealCardFormat'
 import type { LookupItem } from '../api/fastDealsApi'
 import type { FastDealVehicle, OptionItem, OptionsBody } from '../types'
 import FastDealCardError from './FastDealCardError.vue'
@@ -103,8 +103,8 @@ const regions = ref<string[]>([...props.vehicle.regions])
 
 const equipmentCatalog = ref<LookupItem[]>([])
 const serviceCatalog = ref<LookupItem[]>([])
-const purposeCatalog = ref<string[]>([])
-const regionCatalog = ref<string[]>([])
+const purposeCatalog = ref<ChecklistEntry[]>([])
+const regionCatalog = ref<ChecklistEntry[]>([])
 const loadingLookups = ref(true)
 const lookupFailed = ref(false)
 
@@ -116,6 +116,9 @@ const fieldError = (field: string) => (serverError.value?.field === field ? serv
 const generalError = computed(() =>
   serverError.value && !(serverError.value.field && OPTION_FIELDS.includes(serverError.value.field)) ? serverError.value : null,
 )
+
+/** Purposes and regions are stored by their directory code and shown by the display name. */
+const toEntry = (item: LookupItem): ChecklistEntry => ({ value: lookupCode(item), label: lookupName(item) })
 
 async function loadLookups() {
   loadingLookups.value = true
@@ -129,8 +132,8 @@ async function loadLookups() {
     ])
     equipmentCatalog.value = equipmentResponse.items
     serviceCatalog.value = serviceResponse.items
-    purposeCatalog.value = purposeResponse.items.map(lookupName)
-    regionCatalog.value = regionResponse.items.map(lookupName)
+    purposeCatalog.value = purposeResponse.items.map(toEntry)
+    regionCatalog.value = regionResponse.items.map(toEntry)
   } catch {
     lookupFailed.value = true
   } finally {

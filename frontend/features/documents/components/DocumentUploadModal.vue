@@ -182,9 +182,11 @@ const canUpload = computed(() => {
 
 const fetchApplications = async () => {
   try {
+    // Ordinary applications only: the dealer/distributor list also contains fast deals by default.
     const response = await $fetch<ApplicationsListResponse>('/api/v1/applications', {
       baseURL: config.public.apiBase,
-      credentials: 'include'
+      credentials: 'include',
+      query: { kind: 'application' }
     })
     applications.value = response.applications || []
   } catch (err: unknown) {

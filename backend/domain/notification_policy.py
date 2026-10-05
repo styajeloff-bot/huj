@@ -344,7 +344,7 @@ def _targets_exchange_context(
     return True
 
 
-def action_route(
+def action_route(  # noqa: PLR0911 - one route per notification family
     event: NotificationEvent, role: str, storefront_slug: str | None = None,
     leasing_company_id: UUID | None = None,
     company_id: UUID | None = None,

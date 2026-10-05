@@ -22,6 +22,13 @@ from application.queries.applications.dealer_item_scope import (
 from application.queries.applications.item_projection import (
     group_application_items,
 )
+from application.queries.fast_deals.merged import (
+    APPLICATION_LIST_ROLES,
+    KIND_FAST_DEAL,
+    activity_key,
+    merged_page,
+    resolve_list_actor,
+)
 from domain.application_sources import SOURCE_VIEW_ROLES, source_filter_values
 from infrastructure.repositories import application_repository as repo
 
@@ -38,6 +45,8 @@ class ListApplicationsQuery:
     search: str | None = None
     page: int = 1
     limit: int = 50
+    # ``application`` / ``fast_deal``: which kind of rows the shared list returns.
+    kind: str | None = None
 
 
 async def handle_list_applications(
@@ -114,22 +123,53 @@ async def handle_list_applications(
                 personal_rules, query.actor_role, query.actor_company_id
             )
 
-    apps, total = await repo.list_for_user(
+    source_types = (
+        source_filter_values(query.source_type) if query.actor_role in SOURCE_VIEW_ROLES else ()
+    )
+
+    async def fetch_ordinary(page: int, limit: int) -> tuple[list[dict[str, Any]], int]:
+        found: tuple[list[dict[str, Any]], int] = await repo.list_for_user(
+            session,
+            user_id=query.actor_id,
+            role=query.actor_role,
+            company_id=query.actor_company_id,
+            leasing_company_id=query.actor_leasing_company_id,
+            dealer_filter=item_dealer_filter,
+            can_view_company_applications=can_view_company_applications,
+            include_authored_client_applications=query.include_authored_client_applications,
+            status=query.status,
+            personal_clause=personal_clause,
+            source_types=source_types,
+            search=query.search,
+            page=page,
+            limit=limit,
+        )
+        return found
+
+    # Fast deals join the list of a dealer and of a distributor; an ordinary status or
+    # source filter leaves them out (their statuses are their own dictionary).
+    fast_actor = (
+        await resolve_list_actor(
+            session,
+            user_id=query.actor_id,
+            role=query.actor_role,
+            company_id=query.actor_company_id,
+        )
+        if query.actor_role in APPLICATION_LIST_ROLES
+        else None
+    )
+    page_rows, total = await merged_page(
         session,
-        user_id=query.actor_id,
-        role=query.actor_role,
-        company_id=query.actor_company_id,
-        leasing_company_id=query.actor_leasing_company_id,
-        dealer_filter=item_dealer_filter,
-        can_view_company_applications=can_view_company_applications,
-        include_authored_client_applications=query.include_authored_client_applications,
-        status=query.status,
-        personal_clause=personal_clause,
-        source_types=source_filter_values(query.source_type) if query.actor_role in SOURCE_VIEW_ROLES else (),
+        actor=fast_actor,
+        kind=query.kind,
+        ordinary_filtered=bool((query.status or "").strip()) or bool(source_types),
         search=query.search,
         page=query.page,
         limit=query.limit,
+        fetch_ordinary=fetch_ordinary,
+        ordinary_key=activity_key,
     )
+    apps = [row for row in page_rows if row.get("kind") != KIND_FAST_DEAL]
     application_ids = [app["id"] for app in apps]
     vehicle_rows = await repo.list_application_vehicle_item_rows(
         session,
@@ -193,7 +233,7 @@ async def handle_list_applications(
 
     pages = math.ceil(total / query.limit) if query.limit > 0 else 0
     return {
-        "applications": apps,
+        "applications": page_rows,
         "total": total,
         "pagination": {
             "page": query.page,

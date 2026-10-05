@@ -38,6 +38,7 @@ export function useFastDealCard(dealId: UUID, companyContext: () => string | und
   const stale = ref(false)
   const refreshError = ref('')
   const extraCompanyNames = ref<Record<string, string>>({})
+  const directoryLabels = ref<{ purposes: Record<string, string>; regions: Record<string, string> }>({ purposes: {}, regions: {} })
   const offerDialog = ref<{ prefill: boolean } | null>(null)
   const resetPrompt = ref<{ resolve: (accepted: boolean) => void } | null>(null)
 
@@ -113,6 +114,21 @@ export function useFastDealCard(dealId: UUID, companyContext: () => string | und
     card.value = next
     stale.value = false
   }
+
+  /** Purposes and regions are stored by directory code; this loads their display names (best effort). */
+  async function loadDirectoryLabels(): Promise<void> {
+    try {
+      const [purposes, regions] = await Promise.all([api.lookup('purposes'), api.lookup('regions')])
+      const toMap = (items: { code?: unknown; name?: unknown; id: unknown }[]) =>
+        Object.fromEntries(items.map(item => [String(item.code ?? item.id), String(item.name ?? item.code ?? item.id)]))
+      directoryLabels.value = { purposes: toMap(purposes.items), regions: toMap(regions.items) }
+    } catch {
+      // Codes stay readable without the display names.
+    }
+  }
+
+  /** Display name of a stored purpose / region code; the code itself while the directory is not loaded. */
+  const directoryLabel = (kind: 'purposes' | 'regions', code: string): string => directoryLabels.value[kind][code] ?? code
 
   // ---------------------------------------------------------------------- derived rules
 
@@ -218,6 +234,8 @@ export function useFastDealCard(dealId: UUID, companyContext: () => string | und
     resetPrompt,
     load,
     reload,
+    loadDirectoryLabels,
+    directoryLabel,
     guard,
     run,
     replaceCard,

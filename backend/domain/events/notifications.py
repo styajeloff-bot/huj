@@ -309,7 +309,7 @@ class NotificationEvent(BaseModel):
         if not isinstance(targets, list) or not targets:
             raise ValueError("A fast deal fact requires at least one target company")
         if not isinstance(self.payload.get("scope"), str):
-            raise ValueError("A fast deal fact requires its recipient scope")
+            raise ValueError("A fast deal fact requires its recipient scope")  # noqa: TRY004 - Pydantic validation
         # ``<event>:<deal>:<version>[:<scope suffix>]``
         key = (self.occurrence_key or "").split(":")
         if key[:3] != [self.event_type, str(self.entity_id), str(version)]:

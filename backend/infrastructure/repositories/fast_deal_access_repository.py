@@ -17,6 +17,7 @@ from infrastructure.models.fast_deals import (
     FastDeal,
     FastDealAssignee,
     FastDealLcApplication,
+    FastDealSupportRequest,
     FastDealVehicle,
 )
 from infrastructure.models.users import User, UserCompany
@@ -120,7 +121,13 @@ def scope_clause(scope: Scope) -> sa.ColumnElement[bool]:
                 DistributorDealerLink.distributor_company_id == company_id
             )
         )
-        return sa.and_(sent, linked)
+        # A support request addressed to the distributor opens the deal to it even as a
+        # draft: the decision needs the position, and a DD draft accounts it at once.
+        asked = sa.exists().where(
+            FastDealSupportRequest.fast_deal_id == FastDeal.id,
+            FastDealSupportRequest.distributor_company_id == company_id,
+        )
+        return sa.and_(linked, sa.or_(sent, asked))
     return sa.false()
 
 
@@ -344,6 +351,23 @@ async def distributor_of_dealer(session: AsyncSession, dealer_company_id: UUID) 
     return await session.scalar(
         sa.select(DistributorDealerLink.distributor_company_id).where(
             DistributorDealerLink.dealer_company_id == dealer_company_id
+        )
+    )
+
+
+@timed_repository
+async def distributor_has_request(
+    session: AsyncSession, deal_id: UUID, distributor_company_id: UUID
+) -> bool:
+    """Whether a support request of this deal is addressed to the distributor."""
+    return bool(
+        await session.scalar(
+            sa.select(
+                sa.exists().where(
+                    FastDealSupportRequest.fast_deal_id == deal_id,
+                    FastDealSupportRequest.distributor_company_id == distributor_company_id,
+                )
+            )
         )
     )
 

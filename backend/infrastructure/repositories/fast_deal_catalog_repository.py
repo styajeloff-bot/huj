@@ -213,7 +213,7 @@ async def equipment_names(session: AsyncSession, codes: list[str]) -> dict[str, 
             AdditionalEquipment.is_active.is_(True),
         )
     )
-    return {code: name for code, name in rows.all()}
+    return dict(rows.tuples().all())
 
 
 @timed_repository
@@ -228,7 +228,7 @@ async def service_names(session: AsyncSession, codes: list[str]) -> dict[str, st
             AdditionalService.is_active.is_(True),
         )
     )
-    return {code: name for code, name in rows.all()}
+    return dict(rows.tuples().all())
 
 
 @timed_repository
