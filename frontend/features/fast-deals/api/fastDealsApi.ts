@@ -6,6 +6,7 @@ import type {
   CreateFastDealBody,
   FastDealCard,
   FastDealErrorBody,
+  FastDealFile,
   FastDealFileKind,
   FastDealFilters,
   FastDealListResponse,
@@ -127,7 +128,7 @@ export const createFastDealsApi = (config: RuntimeConfig, companyContext: () => 
       for (const company of payload.addresseeCompanyIds ?? []) body.append('addressee_company_ids', company)
       if (payload.fastDealVehicleId) body.append('fast_deal_vehicle_id', payload.fastDealVehicleId)
       if (payload.leasingApplicationId) body.append('lc_application_id', payload.leasingApplicationId)
-      return request<CardResponse & { files: unknown[] }>(`${BASE}/${id}/files`, { method: 'POST', headers: { 'If-Match': etag }, body })
+      return request<CardResponse & { files: FastDealFile[] }>(`${BASE}/${id}/files`, { method: 'POST', headers: { 'If-Match': etag }, body })
     },
     downloadFile: async (id: UUID, fileId: UUID, filename: string) => saveBlob(await request<Blob>(`${BASE}/${id}/files/${fileId}`, { responseType: 'blob' }), filename),
     downloadArchive: async (id: UUID, filename: string) => saveBlob(await request<Blob>(`${BASE}/${id}/files/archive`, { responseType: 'blob' }), filename),
