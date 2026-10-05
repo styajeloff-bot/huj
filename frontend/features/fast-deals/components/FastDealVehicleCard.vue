@@ -176,7 +176,7 @@ const showSupport = computed(
     && (props.vehicle.applied_supports != null || props.vehicle.support_request != null || !!props.vehicle.support_hint),
 )
 const canEditData = computed(
-  () => ctx.canEditPositionData.value && (props.vehicle.vehicle_source_type === 'manual' || props.vehicle.vin_entered_manually),
+  () => ctx.canEditPositionData.value && Object.values(ctx.editableFields(props.vehicle)).some(Boolean),
 )
 const hasActions = computed(() => ctx.canEditPositionData.value || ctx.canEditStructure.value)
 

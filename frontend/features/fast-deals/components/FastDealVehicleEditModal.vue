@@ -103,13 +103,13 @@ const props = defineProps<{ deal: FastDealCard; vehicle: FastDealVehicle }>()
 const emit = defineEmits<{ close: [] }>()
 
 const ctx = useFastDealCardContext()
-const manual = props.vehicle.vehicle_source_type === 'manual'
-
-// What may be edited: a manual position (VIN, price; free text in DL), the VIN typed for a listing without one.
-const canEditVin = manual || props.vehicle.vin_entered_manually
-const canEditPrice = manual
-const canEditText = manual && !ctx.isDD.value
-const canEditClassification = manual && !ctx.isDD.value && ctx.party.value === 'initiator'
+// What may be edited follows the server's rule: a manual position (VIN, price; free text in DL), the VIN typed
+// for a listing without one and the agreed price of a request-priced listing (not for the DL dealer).
+const editable = ctx.editableFields(props.vehicle)
+const canEditVin = editable.vin
+const canEditPrice = editable.price
+const canEditText = editable.text
+const canEditClassification = editable.classification
 const hasEditableFields = canEditVin || canEditPrice || canEditText || canEditClassification
 const fixedDealer = computed(() => props.deal.dealer_company ?? null)
 
