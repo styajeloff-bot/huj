@@ -32,6 +32,7 @@ from infrastructure.models.applications import (
 )
 from infrastructure.models.companies import Company, DistributorBrand
 from infrastructure.models.exchange import ExchangeCartItem, ExchangeRequest
+from infrastructure.models.fast_deals import FastDeal, FastDealVehicle
 from infrastructure.models.payments import PurchaseOrder
 from infrastructure.models.special_equipment import (
     SpecialEquipmentAttribute,
@@ -1119,6 +1120,40 @@ async def _load_application_blocker_docs(
             )
 
 
+async def _load_fast_deal_blocker_docs(
+    session: AsyncSession,
+    product_ids: set[uuid.UUID],
+    docs_by_product: dict[uuid.UUID, list[ProductBlockerDocument]],
+) -> None:
+    """A unit claimed by, or recorded in, a fast deal is never deleted silently.
+
+    Its claim is an allocation without an application line, which the application
+    join above cannot see; the history of the deal must keep its unit as well.
+    """
+    deals = (
+        await session.execute(
+            sa.select(
+                FastDealVehicle.product_id,
+                FastDeal.id,
+                FastDeal.display_number,
+                FastDeal.status,
+            )
+            .join(FastDeal, FastDeal.id == FastDealVehicle.fast_deal_id)
+            .where(FastDealVehicle.product_id.in_(product_ids))
+        )
+    ).all()
+    for pid, deal_id, display_number, status in deals:
+        if not any(d.id == deal_id for d in docs_by_product.get(pid, [])):
+            docs_by_product.setdefault(pid, []).append(
+                ProductBlockerDocument(
+                    type="fast_deal",
+                    id=deal_id,
+                    number=display_number,
+                    status=status,
+                )
+            )
+
+
 async def _load_order_and_exchange_blocker_docs(
     session: AsyncSession,
     product_ids: set[uuid.UUID],
@@ -1236,6 +1271,7 @@ async def load_product_blockers(
     docs_by_product: dict[uuid.UUID, list[ProductBlockerDocument]] = {}
     await _load_application_blocker_docs(session, product_ids, docs_by_product)
     await _load_order_and_exchange_blocker_docs(session, product_ids, docs_by_product)
+    await _load_fast_deal_blocker_docs(session, product_ids, docs_by_product)
 
     if not docs_by_product:
         return []

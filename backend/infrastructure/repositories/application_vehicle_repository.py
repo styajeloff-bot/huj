@@ -393,7 +393,8 @@ async def vin_used_on_other(
     from infrastructure.models.applications import ApplicationVehicleAllocation
     allocation = select(ApplicationVehicleAllocation.id).where(
         ApplicationVehicleAllocation.vin == vin,
-        ApplicationVehicleAllocation.application_vehicle_id != exclude_id,
+        # NULL for a fast-deal claim: ``!=`` would skip it and hide the used VIN.
+        ApplicationVehicleAllocation.application_vehicle_id.is_distinct_from(exclude_id),
         ApplicationVehicleAllocation.released_at.is_(None),
     )
     if (await session.execute(allocation)).first() is not None:

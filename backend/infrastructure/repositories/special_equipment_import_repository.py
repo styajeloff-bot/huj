@@ -42,6 +42,7 @@ from infrastructure.models.exchange import (
     ExchangeCartItem,
     ExchangeRequest,
 )
+from infrastructure.models.fast_deals import FastDeal, FastDealVehicle
 from infrastructure.models.payments import (
     LeasingPaymentSchedule,
     Payment,
@@ -1310,6 +1311,25 @@ async def cascade_purge_warehouse_products(
     )
     if not product_ids:
         return 0
+
+    # A fast deal keeps its units: its claims must not be deleted with the stock.
+    fast_deals = (
+        await session.execute(
+            sa.select(FastDeal.display_number)
+            .join(FastDealVehicle, FastDealVehicle.fast_deal_id == FastDeal.id)
+            .where(FastDealVehicle.product_id.in_(product_ids))
+            .distinct()
+            .order_by(FastDeal.display_number)
+            .limit(5)
+        )
+    ).scalars().all()
+    if fast_deals:
+        raise ImportAggregateSemanticConflictError(
+            "Склад нельзя очистить: техника участвует в быстрых сделках ("
+            + ", ".join(fast_deals)
+            + ")",
+            code="WAREHOUSE_UNITS_IN_FAST_DEALS",
+        )
 
     # a. Applications:
     app_item_ids = set(

@@ -21,6 +21,7 @@ from infrastructure.models.compensations import (
     CompensationTemplateModel,
 )
 from infrastructure.models.exchange import ExchangeRequest
+from infrastructure.models.fast_deals import FastDeal
 from infrastructure.models.special_equipment import SpecialEquipmentProduct
 from infrastructure.models.support import (
     ApplicationAppliedSupport,
@@ -66,6 +67,7 @@ async def create_compensation(session: AsyncSession, data: dict[str, Any]) -> di
         applied_support_id=data["applied_support_id"],
         application_id=data.get("application_id"),
         exchange_request_id=data.get("exchange_request_id"),
+        fast_deal_id=data.get("fast_deal_id"),
         source=data.get("source", "platform"),
         vehicle_id=data.get("vehicle_id"),
         payer=data["payer"],
@@ -153,6 +155,8 @@ async def create_applied_support(
     row = ApplicationAppliedSupport(
         application_id=data.get("application_id"),
         exchange_request_id=data.get("exchange_request_id"),
+        fast_deal_id=data.get("fast_deal_id"),
+        fast_deal_vehicle_id=data.get("fast_deal_vehicle_id"),
         vehicle_id=data.get("vehicle_id"),
         support_program_id=data.get("support_program_id"),
         dealer_company_id=data.get("dealer_company_id"),
@@ -249,6 +253,7 @@ async def get_compensation_by_id(
             ExchangeRequest.batch_index,
             ApplicationAppliedSupport.name,
             ApplicationAppliedSupport.support_program_id,
+            FastDeal.display_number,
         )
         .outerjoin(
             LeasingApplication,
@@ -262,6 +267,7 @@ async def get_compensation_by_id(
             ApplicationAppliedSupport,
             ApplicationAppliedSupport.id == CompensationModel.applied_support_id,
         )
+        .outerjoin(FastDeal, FastDeal.id == CompensationModel.fast_deal_id)
         .where(
             CompensationModel.id == compensation_id,
             _visible_support_program_condition(
@@ -279,6 +285,7 @@ async def get_compensation_by_id(
         exchange_batch_index,
         applied_support_name,
         support_program_id,
+        fast_deal_display_number,
     ) = row
     return _to_dict(
         compensation,
@@ -287,6 +294,7 @@ async def get_compensation_by_id(
         exchange_batch_index=exchange_batch_index,
         applied_support_name=applied_support_name,
         support_program_id=support_program_id,
+        fast_deal_display_number=fast_deal_display_number,
     )
 
 @timed_repository
@@ -318,6 +326,7 @@ async def list_compensations(
             ExchangeRequest.batch_index,
             ApplicationAppliedSupport.name,
             ApplicationAppliedSupport.support_program_id,
+            FastDeal.display_number,
         )
         .outerjoin(
             LeasingApplication,
@@ -331,6 +340,7 @@ async def list_compensations(
             ApplicationAppliedSupport,
             ApplicationAppliedSupport.id == CompensationModel.applied_support_id,
         )
+        .outerjoin(FastDeal, FastDeal.id == CompensationModel.fast_deal_id)
     )
     count_query = (
         select(func.count(CompensationModel.id))
@@ -343,6 +353,7 @@ async def list_compensations(
             ApplicationAppliedSupport,
             ApplicationAppliedSupport.id == CompensationModel.applied_support_id,
         )
+        .outerjoin(FastDeal, FastDeal.id == CompensationModel.fast_deal_id)
     )
 
     conditions: list[Any] = [
@@ -385,6 +396,7 @@ async def list_compensations(
             exchange_batch_index=exchange_batch_index,
             applied_support_name=applied_support_name,
             support_program_id=support_program_id,
+            fast_deal_display_number=fast_deal_display_number,
         )
         for (
             comp,
@@ -393,6 +405,7 @@ async def list_compensations(
             exchange_batch_index,
             applied_support_name,
             support_program_id,
+            fast_deal_display_number,
         ) in rows
     ], total
 
@@ -413,6 +426,7 @@ async def get_compensations_for_support(
                 ExchangeRequest.batch_index,
                 ApplicationAppliedSupport.name,
                 ApplicationAppliedSupport.support_program_id,
+                FastDeal.display_number,
             )
             .outerjoin(
                 LeasingApplication,
@@ -426,6 +440,7 @@ async def get_compensations_for_support(
                 ApplicationAppliedSupport,
                 ApplicationAppliedSupport.id == CompensationModel.applied_support_id,
             )
+            .outerjoin(FastDeal, FastDeal.id == CompensationModel.fast_deal_id)
             .where(
                 CompensationModel.applied_support_id == applied_support_id,
                 _visible_support_program_condition(
@@ -443,6 +458,7 @@ async def get_compensations_for_support(
             exchange_batch_index=exchange_batch_index,
             applied_support_name=applied_support_name,
             support_program_id=support_program_id,
+            fast_deal_display_number=fast_deal_display_number,
         )
         for (
             comp,
@@ -451,6 +467,7 @@ async def get_compensations_for_support(
             exchange_batch_index,
             applied_support_name,
             support_program_id,
+            fast_deal_display_number,
         ) in rows
     ]
 
@@ -707,6 +724,7 @@ def _to_dict(
     exchange_batch_index: int | None = None,
     applied_support_name: str | None = None,
     support_program_id: UUID | None = None,
+    fast_deal_display_number: str | None = None,
 ) -> dict:
     return {
         "id": model.id,
@@ -721,6 +739,8 @@ def _to_dict(
             exchange_batch_number,
             exchange_batch_index,
         ),
+        "fast_deal_id": model.fast_deal_id,
+        "fast_deal_display_number": fast_deal_display_number,
         "source": model.source,
         "product_id": model.product_id,
         "vehicle_id": model.product_id,
@@ -788,6 +808,8 @@ def _applied_support_to_dict(model: ApplicationAppliedSupport) -> dict[str, Any]
         "id": model.id,
         "application_id": model.application_id,
         "exchange_request_id": model.exchange_request_id,
+        "fast_deal_id": model.fast_deal_id,
+        "fast_deal_vehicle_id": model.fast_deal_vehicle_id,
         "product_id": model.product_id,
         "vehicle_id": model.product_id,
         "support_program_id": model.support_program_id,
@@ -824,11 +846,17 @@ def _add_application_filters(
 
     text = application_query.strip()
     match_conditions: list[Any] = [
-        LeasingApplication.display_number.ilike(f"%{text}%")
+        LeasingApplication.display_number.ilike(f"%{text}%"),
+        FastDeal.display_number.ilike(f"%{text}%"),
     ]
     parsed_uuid = _try_uuid(text)
     if parsed_uuid is not None:
-        match_conditions.append(CompensationModel.application_id == parsed_uuid)
+        match_conditions.extend(
+            [
+                CompensationModel.application_id == parsed_uuid,
+                CompensationModel.fast_deal_id == parsed_uuid,
+            ]
+        )
     conditions.append(or_(*match_conditions))
 
 def _add_support_filters(

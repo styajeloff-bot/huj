@@ -432,7 +432,9 @@ async def append_history(
     deal_version: int | None = None,
     review_cycle: int | None = None,
 ) -> Record:
+    # clock_timestamp(), not the transaction start: events of one command keep their order.
     row = FastDealStatusHistory(
+        created_at=sa.func.clock_timestamp(),
         fast_deal_id=deal_id,
         lc_application_id=lc_application_id,
         event_type=event_type,
@@ -447,6 +449,7 @@ async def append_history(
     )
     session.add(row)
     await session.flush()
+    await session.refresh(row)
     return _dict(row)
 
 

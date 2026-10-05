@@ -28,12 +28,21 @@
       class="mb-6 rounded-lg border border-[color:var(--storefront-border,#e5e7eb)] bg-[color:rgb(var(--storefront-surface-rgb,255_255_255)/var(--tw-bg-opacity,1))] p-4"
     >
       <label class="mb-1 block text-sm font-medium text-[color:var(--storefront-label,#374151)]">Статус</label>
-      <select v-model="filters.status" class="storefront-control select-field max-w-xs" @change="applyStatusFilter">
+      <select
+        v-model="filters.status"
+        class="storefront-control select-field max-w-xs"
+        :disabled="filters.kind === 'fast_deal'"
+        @change="applyStatusFilter"
+      >
         <option value="">Все статусы</option>
         <option value="active">Активная</option>
         <option value="rejected">Отклонена</option>
         <option value="issued">Выдана</option>
       </select>
+      <p v-if="statusFilterHint" class="mt-1 text-xs text-[color:var(--storefront-text-muted,#6b7280)]" data-testid="application-status-hint">
+        {{ statusFilterHint }}
+      </p>
+      <ApplicationKindFilter v-model="filters.kind" class="mt-4 max-w-xs" @update:model-value="applyStatusFilter" />
       <div class="mt-4">
         <label for="application-search" class="mb-1 block text-sm font-medium text-[color:var(--storefront-label,#374151)]">Поиск</label>
         <input id="application-search" v-model="filters.search" type="search" class="storefront-control input-field max-w-lg" placeholder="Номер заявки с префиксом или без" @input="debouncedSearch" @keydown.enter.prevent="applyStatusFilter">
@@ -63,19 +72,35 @@
           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
         />
       </svg>
-      <h2 class="mb-2 text-lg font-medium text-[color:var(--storefront-title,#111827)]">Заявок пока нет</h2>
-      <p class="text-[color:var(--storefront-text-muted,#4b5563)]">Создайте первую заявку на автомобиль.</p>
+      <h2 class="mb-2 text-lg font-medium text-[color:var(--storefront-title,#111827)]">{{ emptyTitle }}</h2>
+      <p class="text-[color:var(--storefront-text-muted,#4b5563)]">{{ emptyHint }}</p>
     </div>
 
     <div v-else class="space-y-6">
-      <ApplicationCard
-        v-for="application in applications"
-        :key="application.id"
-        :application="application"
-        action-mode="details"
-        @open-details="openApplicationDetails"
-        @updated="fetchApplications"
-      />
+      <template v-for="row in applications" :key="row.id">
+        <FastDealApplicationRow v-if="isFastDealRow(row)" :deal="row" />
+        <ApplicationCard
+          v-else
+          :application="row"
+          action-mode="details"
+          @open-details="openApplicationDetails"
+          @updated="fetchApplications"
+        />
+      </template>
+    </div>
+
+    <div
+      v-if="!loading && !error && pagination && pagination.pages > 1"
+      class="mt-6 flex items-center justify-center gap-2"
+      data-testid="applications-pagination"
+    >
+      <button type="button" class="btn-secondary text-sm disabled:opacity-50" :disabled="page <= 1" @click="changePage(page - 1)">
+        Назад
+      </button>
+      <span class="px-3 text-sm text-[color:var(--storefront-text,#374151)]">Страница {{ page }} из {{ pagination.pages }}</span>
+      <button type="button" class="btn-secondary text-sm disabled:opacity-50" :disabled="page >= pagination.pages" @click="changePage(page + 1)">
+        Вперёд
+      </button>
     </div>
 
     <ApplicationDetailModal
@@ -95,11 +120,15 @@ import ApplicationCard from '~/features/applications/components/ApplicationCard.
 import ApplicationSourceFilter from '~/features/applications/components/ApplicationSourceFilter.vue'
 import { canViewApplicationSource, type SiteApplicationSourceType } from '~/features/applications/sourceType'
 import ApplicationDetailModal from '~/features/applications/components/ApplicationDetailModal.vue'
+import ApplicationKindFilter from '~/features/fast-deals/components/ApplicationKindFilter.vue'
+import FastDealApplicationRow from '~/features/fast-deals/components/FastDealApplicationRow.vue'
+import { isFastDealRow, kindQueryValue, type ApplicationListKind } from '~/features/fast-deals/mergedList'
 import {
   createApplicationsApi,
   parseApplicationsApiError,
   type Application,
   type EntityId,
+  type MergedApplicationRow,
   type Pagination,
 } from '~/features/applications/api/applicationsApi'
 import { useAuthStore } from '~/features/auth/store/auth'
@@ -114,7 +143,7 @@ const { publicRoute } = useStorefront()
 const config = useRuntimeConfig()
 const applicationsApi = createApplicationsApi(config)
 
-const applications = ref<Application[]>([])
+const applications = ref<MergedApplicationRow[]>([])
 const loading = ref(true)
 const error = ref('')
 const page = ref(1)
@@ -125,7 +154,20 @@ const filters = reactive({
   status: '',
   search: '',
   sources: [] as SiteApplicationSourceType[],
+  kind: '' as ApplicationListKind | '',
 })
+
+// Statuses of ordinary applications do not exist for fast deals: the server leaves them out when
+// such a status is chosen, and the status filter is not sent at all when only fast deals are shown.
+const statusFilterHint = computed(() => {
+  if (filters.kind === 'fast_deal') return 'Статус быстрой регистрации выбирается в разделе «Регистрация сделки».'
+  if (filters.status && filters.kind === '') return 'При выборе статуса показываются только обычные заявки, быстрые регистрации скрыты.'
+  return ''
+})
+const emptyTitle = computed(() => filters.kind === 'fast_deal' ? 'Быстрых регистраций нет' : 'Заявок пока нет')
+const emptyHint = computed(() => filters.kind === 'fast_deal'
+  ? 'Сделки быстрой регистрации появятся здесь, когда вы или ваша компания их создадите.'
+  : 'Создайте первую заявку на автомобиль.')
 
 const fetchApplications = async () => {
   if (!authStore.canViewApplications) {
@@ -138,10 +180,16 @@ const fetchApplications = async () => {
   loading.value = true
   error.value = ''
   try {
-    const response = await applicationsApi.listApplications(page.value, limit.value, filters.status, {
-      search: filters.search,
-      source_type: canViewApplicationSource(authStore.userRole) ? filters.sources : undefined,
-    })
+    const response = await applicationsApi.listApplicationsMerged(
+      page.value,
+      limit.value,
+      filters.kind === 'fast_deal' ? '' : filters.status,
+      {
+        search: filters.search,
+        source_type: canViewApplicationSource(authStore.userRole) ? filters.sources : undefined,
+        kind: kindQueryValue(filters.kind),
+      },
+    )
     applications.value = response.applications || []
     pagination.value = response.pagination || null
   } catch (err) {
@@ -161,6 +209,11 @@ const fetchApplications = async () => {
 
 const applyStatusFilter = () => {
   page.value = 1
+  fetchApplications()
+}
+
+const changePage = (next: number) => {
+  page.value = next
   fetchApplications()
 }
 

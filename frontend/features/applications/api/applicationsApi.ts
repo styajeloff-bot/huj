@@ -5,6 +5,8 @@ import type { CatalogId, UUID } from '~/types/ids'
 import type { CommerceApplicationItem } from '~/features/commerce/types'
 import type { SupportBadgeProgram } from '~/types/support'
 import type { AdditionalOptionPrice } from '~/features/applications/additionalOptionPrice'
+import type { ApplicationListKind } from '~/features/fast-deals/mergedList'
+import type { FastDealListItem } from '~/features/fast-deals/types'
 
 export interface ApplicationEquipmentOption {
   equipment_code: string
@@ -385,6 +387,25 @@ export interface ApplicationsListResponse {
   pagination: Pagination
 }
 
+/**
+ * «Мои заявки» of dealers and distributors also list fast deals: rows with `kind: 'fast_deal'`
+ * are `FastDealListItem`s (their own card, their own statuses), every other row is an application.
+ */
+export type MergedApplicationRow = Application | FastDealListItem
+
+export interface MergedApplicationsListResponse {
+  applications: MergedApplicationRow[]
+  total: number
+  pagination: Pagination
+}
+
+export interface ApplicationListFilters {
+  search?: string
+  source_type?: SiteApplicationSourceType[]
+  /** Narrow the merged list to ordinary applications or to fast deals; omit for both. */
+  kind?: ApplicationListKind
+}
+
 export interface ApplicationDetailResponse {
   application: Application
 }
@@ -491,6 +512,18 @@ export const createApplicationsApi = (config: RuntimeConfig, notificationCompany
   const request = <T>(url: string, options: Record<string, unknown> = {}) =>
     $fetch<T>(withNotificationCompanyContext(url, notificationCompanyContext?.()), { baseURL: config.public.apiBase, credentials: 'include', ...options })
 
+  const listQuery = (page: number, limit: number, status: string, filters: ApplicationListFilters): string => {
+    const params = new URLSearchParams({
+      page: page.toString(),
+      limit: limit.toString(),
+    })
+    if (status) params.append('status', status)
+    if (filters.search?.trim()) params.append('search', filters.search.trim())
+    if (filters.source_type?.length) params.append('source_type', filters.source_type.join(','))
+    if (filters.kind) params.append('kind', filters.kind)
+    return params.toString()
+  }
+
   const appendOptional = (form: FormData, key: string, value: unknown) => {
     if (value !== undefined && value !== null && value !== '') {
       form.append(key, String(value))
@@ -500,16 +533,17 @@ export const createApplicationsApi = (config: RuntimeConfig, notificationCompany
   return {
     // ---- Applications CRUD ------------------------------------------------
 
-    /** GET /api/v1/applications — list all applications for the current user */
-    listApplications(page = 1, limit = 50, status = '', filters: { search?: string; source_type?: SiteApplicationSourceType[] } = {}) {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString(),
-      })
-      if (status) params.append('status', status)
-      if (filters.search?.trim()) params.append('search', filters.search.trim())
-      if (filters.source_type?.length) params.append('source_type', filters.source_type.join(','))
-      return request<ApplicationsListResponse>(`/api/v1/applications?${params.toString()}`)
+    /** GET /api/v1/applications — ordinary applications of the current user (the client's cabinet list) */
+    listApplications(page = 1, limit = 50, status = '', filters: ApplicationListFilters = {}) {
+      return request<ApplicationsListResponse>(`/api/v1/applications?${listQuery(page, limit, status, filters)}`)
+    },
+
+    /**
+     * GET /api/v1/applications — the dealer/distributor list that also contains fast deals.
+     * A status filter of ordinary applications excludes the fast deals (the server decides).
+     */
+    listApplicationsMerged(page = 1, limit = 50, status = '', filters: ApplicationListFilters = {}) {
+      return request<MergedApplicationsListResponse>(`/api/v1/applications?${listQuery(page, limit, status, filters)}`)
     },
 
     /** GET /api/v1/applications/:id — get a single application (wrapped) */

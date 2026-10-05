@@ -35,7 +35,10 @@ class VehicleDeletionPolicy:
 BLOCKING_RELATIONS = {
     "leasing_applications": "Лизинговые заявки",
     "application_vehicles": "Автомобили в составе заявок",
-    "application_vehicle_allocations": "Подбор автомобилей в заявках, включая историю",
+    "application_vehicle_allocations": (
+        "Подбор автомобилей в заявках и быстрых сделках, включая историю"
+    ),
+    "fast_deal_vehicles": "Позиции быстрых сделок, включая историю",
     "purchase_orders": "Заказы на покупку, включая отменённые",
     "exchange_requests": "Запросы биржи",
     "shopping_cart": "Корзины пользователей",

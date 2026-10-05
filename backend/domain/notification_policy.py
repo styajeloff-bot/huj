@@ -215,6 +215,54 @@ POLICIES = {
         "dealer",
         "exchange_emails",
     ),
+    # Fast deals reuse the existing notification types and e-mail categories.
+    "fast_deal.sent": _policy(
+        "Сделка отправлена", "application_status", "leasing_company dealer"
+    ),
+    "fast_deal.offer_sent": _policy(
+        "Получено коммерческое предложение", "leasing_approval", "dealer"
+    ),
+    "fast_deal.offer_selected": _policy(
+        "Коммерческое предложение выбрано", "leasing_approval", "leasing_company"
+    ),
+    "fast_deal.selection_withdrawn": _policy(
+        "Выбор предложения снят", "leasing_approval", "leasing_company"
+    ),
+    "fast_deal.lc_rejected": _policy(
+        "Лизинговая компания отказала", "leasing_approval", "dealer"
+    ),
+    "fast_deal.confirmed": _policy(
+        "Сделка подтверждена", "leasing_approval", "dealer leasing_company distributor"
+    ),
+    "fast_deal.rejected": _policy(
+        "Сделка отклонена", "leasing_approval", "dealer leasing_company"
+    ),
+    "fast_deal.reset": _policy(
+        "Рассмотрение сделки завершено", "application_status", "leasing_company"
+    ),
+    "fast_deal.changes_sent": _policy(
+        "Дилер отправил изменения", "application_status", "leasing_company"
+    ),
+    "fast_deal.changes_accepted": _policy(
+        "Изменения приняты", "leasing_approval", "dealer"
+    ),
+    "fast_deal.changes_rejected": _policy(
+        "Изменения отклонены", "leasing_approval", "dealer"
+    ),
+    "fast_deal.cancelled": _policy(
+        "Сделка отменена", "application_status", "dealer leasing_company"
+    ),
+    "fast_deal.assignees_changed": _policy(
+        "Изменены ответственные по сделке",
+        "application_status",
+        "dealer leasing_company",
+    ),
+    "fast_deal.support_requested": _policy(
+        "Запрос поддержки по сделке", "application_status", "distributor"
+    ),
+    "fast_deal.support_decided": _policy(
+        "Решение по запросу поддержки", "application_status", "dealer"
+    ),
 }
 
 
@@ -247,7 +295,8 @@ def targets_context(
     role = recipient["role"]
     if role not in POLICIES[event.event_type].roles:
         return False
-    if event.event_type.startswith(("monetization.", "document_registry.")):
+    if event.event_type.startswith(("monetization.", "document_registry.", "fast_deal.")):
+        # Fast deal addressees are chosen by their own resolver.
         return True
     if event.event_type.startswith("leasing."):
         return role != "leasing_company" or _targets_leasing_company(event, recipient)
@@ -299,8 +348,15 @@ def action_route(
     event: NotificationEvent, role: str, storefront_slug: str | None = None,
     leasing_company_id: UUID | None = None,
     company_id: UUID | None = None,
+    *,
+    card_visible: bool = True,
 ) -> str:
     company_query = f"notification_company_id={company_id}" if company_id else ""
+    if event.event_type.startswith("fast_deal."):
+        # Without card access (a previous review cycle, a removed assignee) the
+        # link leads to the list, never to a card that would answer "not found".
+        route = "/workspace/fast-deals" + (f"/{event.aggregate_id}" if card_visible else "")
+        return route + (f"?{company_query}" if company_query else "")
     if event.event_type == "document_registry.expiring":
         context = f"&{company_query}" if company_query else ""
         return f"/workspace/document-registry?document={event.entity_id}{context}"
