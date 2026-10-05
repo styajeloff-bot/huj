@@ -19,7 +19,12 @@ from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from application.fast_deals import lifecycle, notifications, pending_changes, reservation
+from application.fast_deals import (
+    lifecycle,
+    notifications,
+    pending_changes,
+    reservation,
+)
 from application.fast_deals.access import DealContext, load_for_mutation
 from application.fast_deals.actor import Actor
 from application.fast_deals.card import build_card

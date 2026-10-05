@@ -131,13 +131,25 @@ export function useFastDealsList() {
     }
   }
 
+  // Text filters are applied while typing, selects immediately; either way the latest wins.
+  let applyTimer: ReturnType<typeof setTimeout> | null = null
+  const cancelPendingApply = (): void => {
+    if (applyTimer) clearTimeout(applyTimer)
+    applyTimer = null
+  }
+
   const applyFilters = (): void => {
+    cancelPendingApply()
     page.value = 1
     void fetchList()
   }
 
+  const debouncedApply = (): void => {
+    cancelPendingApply()
+    applyTimer = setTimeout(applyFilters, 400)
+  }
+
   const resetFilters = (): void => {
-    debouncedApply.cancel()
     Object.assign(filters, emptyFilters())
     applyFilters()
   }
@@ -148,38 +160,20 @@ export function useFastDealsList() {
     void fetchList()
   }
 
-  // Text filters are applied while typing, selects immediately.
-  let applyTimer: ReturnType<typeof setTimeout> | null = null
-  const debouncedApply = Object.assign(
-    () => {
-      if (applyTimer) clearTimeout(applyTimer)
-      applyTimer = setTimeout(() => {
-        applyTimer = null
-        applyFilters()
-      }, 400)
-    },
-    {
-      cancel: () => {
-        if (applyTimer) clearTimeout(applyTimer)
-        applyTimer = null
-      },
-    },
-  )
-
   const load = async (): Promise<void> => {
     await Promise.all([fetchList(), fetchFilterOptions()])
   }
 
   // The set of visible deals depends on the active company (company switcher / notification link).
   watch([() => authStore.activeCompanyId, companyContext], () => {
-    debouncedApply.cancel()
+    cancelPendingApply()
     Object.assign(filters, emptyFilters())
     page.value = 1
     void load()
   })
 
   onBeforeUnmount(() => {
-    debouncedApply.cancel()
+    cancelPendingApply()
     requestSeq++
   })
 
