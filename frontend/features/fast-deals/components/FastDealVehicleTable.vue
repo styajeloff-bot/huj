@@ -150,7 +150,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { parseFastDealError } from '../api/fastDealsApi'
 import { useFastDealCardContext, type ActionFailure } from '../composables/useFastDealCard'
 import {
@@ -297,6 +297,13 @@ function pick() {
   }
   if (valid && bodies.length) emit('pick', bodies)
 }
+
+// Units that became positions meanwhile (a partly failed batch) leave the selection.
+watch(() => props.existingVins, () => {
+  for (const row of seen.values()) {
+    if (selected[row.id] && rowBlocked(row)) delete selected[row.id]
+  }
+})
 
 onMounted(load)
 </script>
