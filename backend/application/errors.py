@@ -155,6 +155,17 @@ from domain.errors import (
     WarehouseNotFoundError,
     ZeroCalculationBaseError,
 )
+from domain.fast_deals.errors import (
+    FastDealAccessDeniedError,
+    FastDealConflictError,
+    FastDealFileTooLargeError,
+    FastDealNotFoundError,
+    FastDealReserveConflictError,
+    FastDealStateError,
+    FastDealValidationError,
+    FastDealVersionConflictError,
+    FastDealVersionRequiredError,
+)
 from domain.monetization.errors import (
     MonetizationAccessDeniedError,
     MonetizationConflictError,
@@ -245,6 +256,16 @@ class ServiceError(Exception):
 
 
 _DOMAIN_HTTP_MAP: dict[type, int] = {
+    # Fast deals: 404 also hides foreign resources, 412/428 are version checks.
+    FastDealNotFoundError: 404,
+    FastDealAccessDeniedError: 403,
+    FastDealValidationError: 422,
+    FastDealStateError: 409,
+    FastDealConflictError: 409,
+    FastDealReserveConflictError: 409,
+    FastDealVersionConflictError: 412,
+    FastDealVersionRequiredError: 428,
+    FastDealFileTooLargeError: 413,
     MonetizationValidationError: 400,
     MonetizationConflictError: 409,
     MonetizationAccessDeniedError: 403,

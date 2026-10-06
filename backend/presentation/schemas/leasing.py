@@ -69,8 +69,22 @@ class LcApplicationSummary(BaseModel):
 
 
 class LcApplicationRow(BaseModel):
+    kind: Literal["application"] = "application"
     link: LcApplicationLinkOut
     application: LcApplicationSummary
+
+
+class LcFastDealRow(BaseModel):
+    """A fast-deal registration in the LC list: the flat ``FastDealListItem`` fields."""
+
+    model_config = ConfigDict(extra="allow")
+
+    kind: Literal["fast_deal"] = "fast_deal"
+    id: uuid.UUID
+    display_number: str
+    source_type: Literal["dealer_to_leasing", "leasing_to_dealer"]
+    status: str
+    link_url: str
 
 
 class Pagination(BaseModel):
@@ -81,7 +95,7 @@ class Pagination(BaseModel):
 
 
 class LcApplicationsListResponse(BaseModel):
-    applications: list[LcApplicationRow]
+    applications: list[LcApplicationRow | LcFastDealRow]
     pagination: Pagination
 
 

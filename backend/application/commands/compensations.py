@@ -48,11 +48,12 @@ class CreateCompensationCommand:
     payer: str
     recipient: str
     calculation_base: str
-    calculation_base_amount: float | None
+    calculation_base_amount: float | Decimal | None
     value_type: str
     value: float
     source: str = "platform"
     exchange_request_id: UUID | None = None
+    fast_deal_id: UUID | None = None
     min_amount: float | None = None
     max_amount: float | None = None
     min_percent: float | None = None
@@ -73,6 +74,7 @@ class CreateBulkCompensationsCommand:
     created_by: UUID | None = None
     source: str = "platform"
     exchange_request_id: UUID | None = None
+    fast_deal_id: UUID | None = None
 
 
 @dataclass
@@ -121,16 +123,26 @@ async def handle_create_compensation(
     )
     if applied_support is None:
         raise ServiceError("Снимок применённой поддержки не найден", 404)
-    if cmd.application_id is None and cmd.exchange_request_id is None:
+    if (
+        cmd.application_id is None
+        and cmd.exchange_request_id is None
+        and cmd.fast_deal_id is None
+    ):
         cmd.application_id = applied_support.get("application_id")
         cmd.exchange_request_id = applied_support.get("exchange_request_id")
+        cmd.fast_deal_id = applied_support.get("fast_deal_id")
         if cmd.exchange_request_id is not None:
             cmd.source = "exchange"
-    if cmd.source == "platform":
-        if cmd.application_id is None or cmd.exchange_request_id is not None:
-            raise ServiceError("Некорректный источник компенсации", 400)
-    elif cmd.source == "exchange":
-        if cmd.exchange_request_id is None or cmd.application_id is not None:
+        elif cmd.fast_deal_id is not None:
+            cmd.source = "fast_deal"
+    others = {
+        "platform": (cmd.application_id, cmd.exchange_request_id, cmd.fast_deal_id),
+        "exchange": (cmd.exchange_request_id, cmd.application_id, cmd.fast_deal_id),
+        "fast_deal": (cmd.fast_deal_id, cmd.application_id, cmd.exchange_request_id),
+    }
+    if cmd.source in others:
+        own, *foreign = others[cmd.source]
+        if own is None or any(value is not None for value in foreign):
             raise ServiceError("Некорректный источник компенсации", 400)
     else:
         raise ServiceError("Неизвестный источник компенсации", 400)
@@ -165,6 +177,7 @@ async def handle_create_compensation(
         "applied_support_id": cmd.applied_support_id,
         "application_id": cmd.application_id,
         "exchange_request_id": cmd.exchange_request_id,
+        "fast_deal_id": cmd.fast_deal_id,
         "source": cmd.source,
         "vehicle_id": cmd.vehicle_id,
         "payer": cmd.payer,
@@ -200,6 +213,7 @@ async def handle_create_compensation(
         "exchange_request_id": (
             str(cmd.exchange_request_id) if cmd.exchange_request_id else None
         ),
+        "fast_deal_id": str(cmd.fast_deal_id) if cmd.fast_deal_id else None,
         "source": cmd.source,
         "vehicle_id": cmd.vehicle_id,
         "payer": cmd.payer,
@@ -259,6 +273,7 @@ async def handle_create_bulk_compensations(
             value=comp_data["value"],
             source=cmd.source,
             exchange_request_id=cmd.exchange_request_id,
+            fast_deal_id=cmd.fast_deal_id,
             min_amount=comp_data.get("min_amount"),
             max_amount=comp_data.get("max_amount"),
             min_percent=comp_data.get("min_percent"),
@@ -344,6 +359,9 @@ async def handle_update_compensation_status(
             str(result.get("exchange_request_id"))
             if result.get("exchange_request_id")
             else None
+        ),
+        "fast_deal_id": (
+            str(result.get("fast_deal_id")) if result.get("fast_deal_id") else None
         ),
         "source": result.get("source", "platform"),
         "vehicle_id": result.get("vehicle_id"),
@@ -591,8 +609,8 @@ async def handle_recalculate_compensations(
             vehicle_id=row.get("vehicle_id"),
             explicit_amount=(
                 row.get("calculation_base_amount")
-                if row.get("application_id") is None
-                and row.get("vehicle_id") is None
+                if row.get("source") == "fast_deal"
+                or (row.get("application_id") is None and row.get("vehicle_id") is None)
                 else None
             ),
         )
@@ -646,7 +664,7 @@ async def _build_compensation(
     payer: str,
     recipient: str,
     calculation_base: str,
-    calculation_base_amount: float | None,
+    calculation_base_amount: float | Decimal | None,
     value_type: str,
     value: float,
     min_amount: float | None,
@@ -700,7 +718,7 @@ async def _resolve_calculation_base_amount(
     applied_support_id: UUID,
     application_id: uuid.UUID | None,
     vehicle_id: UUID | None,
-    explicit_amount: float | None,
+    explicit_amount: float | Decimal | None,
 ) -> Decimal:
     if explicit_amount is not None:
         return Decimal(str(explicit_amount))

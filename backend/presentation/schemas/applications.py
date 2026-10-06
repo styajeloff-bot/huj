@@ -488,6 +488,10 @@ class ApplicationSummary(BaseModel):
     created_at: _dt.datetime | None = None
     assigned_dealer_group_id: UUID | None = None
     assigned_dealer: AssignedDealerOut | None = None
+    # ``fast_deal`` rows (a fast-deal registration) are spliced into the list; they
+    # carry the fields of ``FastDealListItem`` and ``link_url`` to their own card.
+    kind: Literal["application", "fast_deal"] | None = None
+    link_url: str | None = None
 
 
 class PaginationOut(BaseModel):

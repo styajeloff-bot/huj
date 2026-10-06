@@ -294,6 +294,9 @@ def error_response(
             "entity_code",
             "entity_name",
             "dependencies",
+            "field",
+            "vin",
+            "source_number",
         ):
             if key in detail:
                 payload[key] = detail[key]
@@ -492,9 +495,15 @@ async def handle_domain_error(request: Request, exc: DomainError) -> JSONRespons
             detail=str(service_error),
             code=_domain_error_code(exc),
         )
+    # Fast deal errors point at the offending input (field) or unit (VIN).
+    extension = {
+        key: value
+        for key in ("field", "vin", "source_number")
+        if (value := getattr(exc, key, None)) is not None
+    }
     return error_response(
         status_code=service_error.status_code,
-        detail=str(service_error),
+        detail={"error": str(service_error), **extension} if extension else str(service_error),
         code=_domain_error_code(exc),
     )
 

@@ -5,7 +5,32 @@ from decimal import Decimal
 from typing import Any
 
 from domain.monetization.errors import MonetizationValidation
-from domain.monetization.programs import SOURCES, positive_decimal
+from domain.monetization.programs import FAST_DEAL_SOURCES, SOURCES, positive_decimal
+
+
+def _exchange_base(facts: dict[str, Any]) -> Decimal:
+    if not facts.get("accepted_bid_id") or not facts.get("bid_is_accepted"):
+        raise MonetizationValidation("Принятая ставка биржи не зафиксирована")
+    quantity = facts.get("bid_quantity")
+    if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity <= 0:
+        raise MonetizationValidation(
+            "Не зафиксировано положительное количество принятой ставки"
+        )
+    return positive_decimal(facts.get("bid_price"), "Цена принятой ставки") * Decimal(
+        quantity
+    )
+
+
+def _fast_deal_base(facts: dict[str, Any]) -> Decimal:
+    """The immutable confirmed amount is the base; a fast deal has no proposal."""
+    if not facts.get("fast_deal_id"):
+        raise MonetizationValidation("Не определена сделка быстрой регистрации")
+    amount = facts.get("confirmed_amount")
+    if isinstance(amount, Decimal) and amount == 0:
+        raise MonetizationValidation(
+            "Сумма подтверждённой сделки нулевая: монетизация не фиксируется"
+        )
+    return positive_decimal(amount, "Сумма подтверждённой сделки")
 
 
 def build_source_context(
@@ -28,16 +53,9 @@ def build_source_context(
             "Участники исходной сделки определены неоднозначно"
         )
     if facts["source_type"] == "exchange":
-        if not facts.get("accepted_bid_id") or not facts.get("bid_is_accepted"):
-            raise MonetizationValidation("Принятая ставка биржи не зафиксирована")
-        quantity = facts.get("bid_quantity")
-        if not isinstance(quantity, int) or isinstance(quantity, bool) or quantity <= 0:
-            raise MonetizationValidation(
-                "Не зафиксировано положительное количество принятой ставки"
-            )
-        base = positive_decimal(
-            facts.get("bid_price"), "Цена принятой ставки"
-        ) * Decimal(quantity)
+        base = _exchange_base(facts)
+    elif facts["source_type"] in FAST_DEAL_SOURCES:
+        base = _fast_deal_base(facts)
     else:
         if not facts.get("final_proposal_id"):
             raise MonetizationValidation(

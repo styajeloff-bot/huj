@@ -93,6 +93,8 @@ class CompensationOut(BaseModel):
     application_display_number: str | None = None
     exchange_request_id: uuid.UUID | None = None
     exchange_request_display_number: str | None = None
+    fast_deal_id: uuid.UUID | None = None
+    fast_deal_display_number: str | None = None
     source: str = "platform"
     vehicle_id: str | None = None
     payer: str

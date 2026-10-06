@@ -70,7 +70,9 @@ async def has_conflicting_claim(session: AsyncSession, vehicle_id: UUID, *, line
         ApplicationVehicleAllocation.product_id == vehicle_id,
         ApplicationVehicleAllocation.released_at.is_(None))
     if line_id is not None:
-        allocation = allocation.where(ApplicationVehicleAllocation.application_vehicle_id != line_id)
+        # A fast-deal claim has no application line (NULL): ``!=`` would skip it.
+        allocation = allocation.where(
+            ApplicationVehicleAllocation.application_vehicle_id.is_distinct_from(line_id))
     if await session.scalar(sa.select(sa.exists(allocation))):
         return True
     return bool(await session.scalar(sa.select(sa.exists().where(
@@ -273,6 +275,8 @@ async def enrich_line_composition(session: AsyncSession, rows: list[dict[str, An
         ApplicationVehicleAllocation.application_vehicle_id.in_([row["id"] for row in rows]),
         ApplicationVehicleAllocation.released_at.is_(None)))).all()
     for allocation in items:
+        if allocation.application_vehicle_id is None:
+            continue  # a fast-deal claim belongs to no application line
         grouped.setdefault(allocation.application_vehicle_id, []).append(_dict(allocation))
     legacy = await legacy_reservations(session, rows)
     for row in rows:

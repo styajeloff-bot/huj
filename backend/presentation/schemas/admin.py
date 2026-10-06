@@ -5,7 +5,7 @@ from __future__ import annotations
 import datetime as _dt
 import uuid
 from decimal import Decimal
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -265,6 +265,11 @@ class AdminApplicationOut(BaseModel):
     can_assign_leasing_companies: bool = False
     created_at: _dt.datetime | None = None
     updated_at: _dt.datetime | None = None
+    # A ``fast_deal`` row is a fast-deal registration (``FastDealListItem`` fields,
+    # money as an exact decimal string) with ``link_url`` to its own card.
+    kind: Literal["application", "fast_deal"] = "application"
+    source_type: str | None = None
+    link_url: str | None = None
 
 
 class AdminApplicationsListResponse(BaseModel):

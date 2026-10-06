@@ -1,16 +1,14 @@
-import type { ConditionPair, ConditionRow, PairedSourceBlock, ProgramDraft, ProgramEditorDraft, SourceBlock } from './types'
+import type { ConditionPair, ConditionRow, PairedSourceBlock, ProgramDraft, ProgramEditorDraft, SourceBlock, SourceType } from './types'
 
 export const sourceOptions = [
-  { value: 'platform', label: 'Заявка с сайта платформы МЛ', disabled: false },
-  { value: 'dealer_account', label: 'Заявка через аккаунт дилера', disabled: false },
-  { value: 'exchange', label: 'Биржа ТС', disabled: false },
-  { value: 'dealer_site', label: 'Заявка с сайта дилера', disabled: false },
-  { value: 'distributor_site', label: 'Заявка с сайта дистрибьютора', disabled: false },
-  { value: 'quick_deal_dealer', label: 'Регистрация сделки дилером', disabled: true },
-  { value: 'quick_deal_distributor', label: 'Регистрация сделки дистрибьютором', disabled: true },
-  { value: 'leasing_to_dealer', label: 'ЛК → дилер', disabled: true },
-  { value: 'dealer_to_leasing', label: 'Дилер → ЛК', disabled: true },
-] as const
+  { value: 'platform', label: 'Заявка с сайта платформы МЛ' },
+  { value: 'dealer_account', label: 'Заявка через аккаунт дилера' },
+  { value: 'exchange', label: 'Биржа ТС' },
+  { value: 'dealer_site', label: 'Заявка с сайта дилера' },
+  { value: 'distributor_site', label: 'Заявка с сайта дистрибьютора' },
+  { value: 'dealer_to_leasing', label: 'Дилер → ЛК' },
+  { value: 'leasing_to_dealer', label: 'ЛК → дилеру' },
+] as const satisfies readonly { value: SourceType; label: string }[]
 export const participantLabels = { leasing: 'Лизинговая компания', dealer: 'Дилер', distributor: 'Дистрибьютор', platform: 'Платформа МЛ' }
 export const sourceLabel = (value: string) => sourceOptions.find(option => option.value === value)?.label ?? value
 export const newRow = (id: string): ConditionRow => ({ local_id: id, participant_type: 'leasing', base_type: 'property_value', expense_ref: null, calc_type: 'percent', value: '', min: null, max: null, vat_excluded: false })
@@ -45,7 +43,7 @@ export function validateDraft(draft: ProgramDraft): string | null {
   if (!draft.sources.length) return 'Добавьте хотя бы один источник заявки'
   if (draft.support_program_id && draft.sources.some(block => block.source_type === 'exchange')) return 'Для биржи нельзя выбрать программу стимулирования'
   for (const block of draft.sources) {
-    if (!sourceOptions.some(option => option.value === block.source_type && !option.disabled)) return 'Источник недоступен'
+    if (!sourceOptions.some(option => option.value === block.source_type)) return 'Источник недоступен'
     if (!block.expenses.length) return 'Добавьте хотя бы один расход в каждый источник'
     for (const row of [...block.expenses, ...block.incomes]) {
       if (!(row.participant_type in participantLabels)) return 'Участник недоступен'

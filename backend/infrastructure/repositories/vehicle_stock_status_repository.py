@@ -36,6 +36,12 @@ async def enrich_stock_status(session: AsyncSession, items: list[dict[str, Any]]
         ApplicationVehicleAllocation.completed_at.is_not(None),
         ApplicationVehicleAllocation.released_at.is_(None),
     ).exists()
+    # A fast-deal claim has no expiry: ``reserved_until`` stays NULL, which is valid.
+    by_fast_deal = select(ApplicationVehicleAllocation.id).where(
+        ApplicationVehicleAllocation.product_id == SpecialEquipmentProduct.id,
+        ApplicationVehicleAllocation.fast_deal_vehicle_id.is_not(None),
+        ApplicationVehicleAllocation.released_at.is_(None),
+    ).exists()
     expiry = select(ApplicationVehicleAllocation.reserved_until).where(
         ApplicationVehicleAllocation.product_id == SpecialEquipmentProduct.id,
         ApplicationVehicleAllocation.released_at.is_(None),
@@ -43,7 +49,7 @@ async def enrich_stock_status(session: AsyncSession, items: list[dict[str, Any]]
     ).scalar_subquery()
     rows = (await session.execute(select(
         SpecialEquipmentProduct.id, pending.label("purchase_pending"), completed.label("sale_completed"),
-        expiry.label("reserved_until"),
+        expiry.label("reserved_until"), by_fast_deal.label("reserved_by_fast_deal"),
     ).where(SpecialEquipmentProduct.id.in_(prod_ids)))).mappings().all()
     states = {row["id"]: dict(row) for row in rows}
     for item in items:

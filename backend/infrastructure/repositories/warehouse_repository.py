@@ -1240,7 +1240,7 @@ async def delete_binding(
     ).scalar_one_or_none()
     if claimed:
         from domain.errors import ApplicationVehicleAssignmentError
-        raise ApplicationVehicleAssignmentError("Нельзя отвязать автомобиль, закреплённый за заявкой или завершённой сделкой")
+        raise ApplicationVehicleAssignmentError("Нельзя отвязать автомобиль, закреплённый за заявкой, быстрой сделкой или завершённой сделкой")
 
     prod = await session.get(SpecialEquipmentProduct, vehicle_id)
     if prod is None or prod.warehouse_id != warehouse_id:

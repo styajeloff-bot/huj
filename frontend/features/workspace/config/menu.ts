@@ -5,7 +5,7 @@ import {
   HomeModernIcon, ShieldCheckIcon, UserCircleIcon,
   UserGroupIcon, TruckIcon, DocumentTextIcon, DocumentCheckIcon,
   PresentationChartLineIcon, ReceiptPercentIcon,
-  RectangleStackIcon,
+  RectangleStackIcon, BoltIcon,
 } from '@heroicons/vue/24/outline'
 
 export type BusinessRole = 'dealer' | 'leasing_company' | 'distributor' | 'carcraft_employee'
@@ -50,6 +50,18 @@ const profileItem: WorkspaceMenuItem = {
   configurable: false,
 }
 
+/**
+ * «Регистрация сделки» is the first item of every business role. It is not configurable:
+ * section visibility has no key for it, and the clients (no business role) never see the menu.
+ */
+const fastDealsItem: WorkspaceMenuItem = {
+  key: 'fast_deals',
+  label: 'Регистрация сделки',
+  to: '/workspace/fast-deals',
+  icon: BoltIcon,
+  configurable: false,
+}
+
 const monetizationGate = (a: WorkspaceAuthLike): boolean => {
   if (a.isCarCraftEmployee) return true
   if (a.sectionAccess) {
@@ -61,6 +73,7 @@ const monetizationGate = (a: WorkspaceAuthLike): boolean => {
 
 export const WORKSPACE_MENU: Record<BusinessRole, WorkspaceMenuItem[]> = {
   carcraft_employee: [
+    fastDealsItem,
     { key: 'applications', label: 'Распределение заявок', to: '/workspace/applications', icon: ClipboardDocumentListIcon, configurable: false },
     { key: 'users', label: 'Пользователи', to: '/workspace/users', icon: UsersIcon, configurable: false },
     { key: 'companies', label: 'Компании', to: '/workspace/companies', icon: BuildingOffice2Icon, configurable: false },
@@ -80,6 +93,7 @@ export const WORKSPACE_MENU: Record<BusinessRole, WorkspaceMenuItem[]> = {
     employeesItem(false),
   ],
   dealer: [
+    fastDealsItem,
     { key: 'applications', label: 'Мои заявки', to: '/workspace/applications', icon: ClipboardDocumentListIcon, configurable: true, gate: (a) => a.canViewApplications },
     { key: 'clients', label: 'Мои клиенты', to: '/workspace/clients', icon: UserGroupIcon, configurable: true },
     { key: 'inventory', label: 'Склады', to: '/workspace/warehouses', icon: BuildingStorefrontIcon, configurable: true },
@@ -100,6 +114,7 @@ export const WORKSPACE_MENU: Record<BusinessRole, WorkspaceMenuItem[]> = {
     employeesItem(true),
   ],
   distributor: [
+    fastDealsItem,
     { key: 'applications', label: 'Мои заявки', to: '/workspace/applications', icon: ClipboardDocumentListIcon, configurable: true, gate: (a) => a.canViewApplications },
     { key: 'exchange', label: 'Биржа ТС', to: '/workspace/exchange', icon: ArrowsRightLeftIcon, configurable: true, gate: a => a.canViewApplications },
     { key: 'warehouses', label: 'Склады', to: '/workspace/warehouses', icon: BuildingStorefrontIcon, configurable: true },
@@ -113,6 +128,7 @@ export const WORKSPACE_MENU: Record<BusinessRole, WorkspaceMenuItem[]> = {
     employeesItem(true),
   ],
   leasing_company: [
+    fastDealsItem,
     { key: 'leasing_applications', label: 'Заявки на лизинг', to: '/workspace/leasing-applications', icon: ClipboardDocumentListIcon, configurable: true, gate: (a) => a.canViewApplications },
     { key: 'documents', label: 'Документы клиентов', to: '/workspace/documents', icon: DocumentTextIcon, configurable: true },
     { key: 'document_requirements', label: 'Требования к документам', to: '/workspace/document-requirements', icon: DocumentCheckIcon, configurable: true },

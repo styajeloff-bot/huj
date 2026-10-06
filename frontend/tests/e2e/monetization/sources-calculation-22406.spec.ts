@@ -125,7 +125,7 @@ test('non-admin cannot create multi-source conditions and invalid source is reje
     for (const [actor, expected] of [[dealer, 403], [admin, 400]] as const) {
       const csrf = (await actor.context.cookies(fixture!.base_url)).find(cookie => cookie.name === 'csrfToken')
       if (!csrf) throw new Error('Fixture is missing CSRF cookie')
-      const data = actor === admin ? { ...payload, sources: [{ ...payload.sources[0], source_type: 'leasing_to_dealer' }] } : payload
+      const data = actor === admin ? { ...payload, sources: [{ ...payload.sources[0], source_type: 'quick_deal_distributor' }] } : payload
       const result = await actor.context.request.post('/api/v1/admin/monetization/programs', { headers: { 'X-CSRF-Token': csrf.value }, data })
       expect(result.status(), await result.text()).toBe(expected)
     }

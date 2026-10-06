@@ -20,7 +20,7 @@ export const filterableNotificationTypes = [
 
 export interface NotificationData {
   event_type?: string
-  entity_type?: 'leasing_application' | 'exchange_request' | 'exchange_bid' | 'reference_document'
+  entity_type?: 'leasing_application' | 'exchange_request' | 'exchange_bid' | 'reference_document' | 'fast_deal'
   entity_id?: UUID
   event_id?: UUID
   request_number?: string

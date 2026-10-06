@@ -128,6 +128,10 @@ from presentation.routers.exchange_requests_dealer import (
 from presentation.routers.exchange_requests_distributor import (
     router as exchange_requests_distributor_router,
 )
+from presentation.routers.fast_deals import router as fast_deals_router
+from presentation.routers.fast_deals import (
+    vin_lookup_router as fast_deals_vin_lookup_router,
+)
 from presentation.routers.identity_verification import (
     router as identity_verification_router,
 )
@@ -493,6 +497,18 @@ app.include_router(
     section_visibility_router,
     prefix="/api/v1",
     tags=["section-visibility"],
+)
+# Fast deal registration (Bitrix 22152). The VIN lookup sits under the special-equipment
+# prefix; both routers are authenticated and mounted before the public catalog routes.
+app.include_router(
+    fast_deals_vin_lookup_router,
+    prefix="/api/v1/special-equipment/catalog",
+    tags=["fast-deals"],
+)
+app.include_router(
+    fast_deals_router,
+    prefix="/api/v1/fast-deals",
+    tags=["fast-deals"],
 )
 app.include_router(
     special_equipment_router,

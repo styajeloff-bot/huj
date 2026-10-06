@@ -17,6 +17,7 @@ from infrastructure.models.companies import (
     LeasingCompany,
 )
 from infrastructure.models.exchange import ExchangeBid, ExchangeRequest
+from infrastructure.models.fast_deals import FastDeal, FastDealVehicle
 from infrastructure.models.special_equipment import (
     SpecialEquipmentMark,
     SpecialEquipmentModel,
@@ -357,4 +358,97 @@ async def exchange_source(session: AsyncSession, request_id: UUID) -> Record:
         [dict(vehicle, quantity=bid["quantity"])] if vehicle is not None else []
     )
     result["supports"] = await _supports(session, "exchange_request_id", request_id)
+    return result
+
+
+async def _leasing_extension_ids(session: AsyncSession, company_id: Any) -> list[Any]:
+    """``leasing_companies.id`` rows of a leasing *company*.
+
+    A fast deal stores ``companies.id`` while monetization programs and deals use the
+    leasing extension id: two different UUID contracts that are joined here only.
+    """
+    if company_id is None:
+        return []
+    rows = await session.scalars(
+        sa.select(LeasingCompany.id)
+        .join(Company, Company.id == LeasingCompany.company_id)
+        .where(
+            LeasingCompany.company_id == company_id,
+            Company.company_type == "leasing_company",
+        )
+    )
+    return list(rows.all())
+
+
+def _fast_deal_vehicle(row: Record) -> Record:
+    """Position snapshot used to match vehicle filters of monetization programs."""
+    return {
+        "vehicle_id": row["product_id"],
+        "fast_deal_vehicle_id": row["id"],
+        "brand": row["mark_name"],
+        "model": row["model_name"],
+        "modification": row["modification_name"],
+        "trim": row["trim_name"],
+        "legacy_trim": row["modification_name"],
+        "vin": row["vin"],
+        "quantity": 1,
+        "dealer_company_id": row["dealer_company_id"],
+        "final_price": row["final_price"],
+    }
+
+
+async def fast_deal_source(session: AsyncSession, deal_id: UUID) -> Record:
+    """Facts of one fast deal; each split DL part is an independent source.
+
+    ``group_id`` is never a key. The leasing company is resolved explicitly through
+    ``LeasingCompany.company_id``: no match, or several, leaves it undefined for the
+    existing capture-failure path instead of guessing a company.
+    """
+    deal = await _row(session, FastDeal.__table__, deal_id)
+    result: Record = {"fast_deal_id": deal_id}
+    if not deal:
+        return result
+    dealer_id = (
+        deal["initiator_company_id"]
+        if deal["source_type"] == "dealer_to_leasing"
+        else deal["dealer_company_id"]
+    )
+    leasing = await _leasing_extension_ids(session, deal["leasing_company_id"])
+    result.update(
+        source_type=deal["source_type"],
+        source_status="deal" if deal["status"] == "confirmed" else deal["status"],
+        application_number=deal["display_number"],
+        client_company_id=deal["client_company_id"],
+        confirmed_amount=deal["confirmed_amount"],
+        leasing_company_id=leasing[0] if len(leasing) == 1 else None,
+    )
+    result.update(await _participants(session, dealer_id, None))
+    positions = FastDealVehicle.__table__
+    rows = [
+        dict(row)
+        for row in (
+            await session.execute(
+                sa.select(positions)
+                .where(
+                    positions.c.fast_deal_id == deal_id,
+                    positions.c.item_status == "active",
+                )
+                .order_by(positions.c.position, positions.c.id)
+            )
+        ).mappings()
+    ]
+    if len(leasing) > 1 or any(
+        row["dealer_company_id"] is not None and row["dealer_company_id"] != dealer_id
+        for row in rows
+    ):
+        result["participant_conflict"] = True
+    result["vehicles"] = [_fast_deal_vehicle(row) for row in rows]
+    active = {row["id"] for row in rows}
+    # The applied-support row stores the catalog unit as ``product_id``; program
+    # matching reads it as ``vehicle_id``. Supports of removed positions do not count.
+    result["supports"] = [
+        dict(support, vehicle_id=support["product_id"])
+        for support in await _supports(session, "fast_deal_id", deal_id)
+        if support["fast_deal_vehicle_id"] in active
+    ]
     return result

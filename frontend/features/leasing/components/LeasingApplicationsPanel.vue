@@ -14,7 +14,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Статус</label>
-          <select v-model="filters.status" class="select-field" @change="applyFilters">
+          <select v-model="filters.status" class="select-field" :disabled="filters.kind === 'fast_deal'" @change="applyFilters">
             <option value="">Все статусы</option>
             <option value="submitted">Подана</option>
             <option value="under_review">На рассмотрении</option>
@@ -30,12 +30,14 @@
             <option value="deal">Профинансировано</option>
             <option value="closed">Закрыта клиентом</option>
           </select>
+          <p v-if="statusFilterHint" class="mt-1 text-xs text-gray-500" data-testid="application-status-hint">{{ statusFilterHint }}</p>
         </div>
         <div>
           <label for="leasing-application-search" class="mb-1 block text-sm font-medium text-gray-700">Поиск</label>
           <input id="leasing-application-search" v-model="filters.search" class="input-field" type="search" placeholder="Номер заявки с префиксом или без" @input="debouncedSearch" @keydown.enter.prevent="applyFilters">
         </div>
       </div>
+      <ApplicationKindFilter v-model="filters.kind" class="mt-4 max-w-xs" @update:model-value="applyFilters" />
       <ApplicationSourceFilter v-model="filters.sources" class="mt-4" @update:model-value="applyFilters" />
     </div>
 
@@ -54,17 +56,18 @@
 
     <div v-else-if="applications.length === 0" class="text-center py-12">
       <h3 class="text-lg font-medium text-gray-900 mb-2">
-        Заявки не найдены
+        {{ filters.kind === 'fast_deal' ? 'Быстрые регистрации не найдены' : 'Заявки не найдены' }}
       </h3>
       <p class="text-gray-600">
-        Пока нет заявок для вашей лизинговой компании
+        {{ filters.kind === 'fast_deal' ? 'Сделки быстрой регистрации вашей лизинговой компании появятся здесь' : 'Пока нет заявок для вашей лизинговой компании' }}
       </p>
     </div>
 
     <div v-else class="space-y-4">
+      <template v-for="application in applications" :key="application.id">
+      <FastDealApplicationRow v-if="isFastDealRow(application)" :deal="application" />
       <div
-        v-for="application in applications"
-        :key="application.id"
+        v-else
         class="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow"
       >
         <div class="flex items-start justify-between mb-4">
@@ -148,6 +151,7 @@
           </div>
         </div>
       </div>
+      </template>
     </div>
 
     <!-- Пагинация -->
@@ -181,6 +185,13 @@ import type { LeasingApplicationDisplay, PaginationInfo, LeasingAppStatus } from
 import { formatSourcedApplicationNumber as formatApplicationNumber, type SiteApplicationSourceType } from '~/features/applications/sourceType'
 import ApplicationSourceBadge from '~/features/applications/components/ApplicationSourceBadge.vue'
 import ApplicationSourceFilter from '~/features/applications/components/ApplicationSourceFilter.vue'
+import ApplicationKindFilter from '~/features/fast-deals/components/ApplicationKindFilter.vue'
+import FastDealApplicationRow from '~/features/fast-deals/components/FastDealApplicationRow.vue'
+import { asFastDealRow, isFastDealRow, kindQueryValue, type ApplicationListKind } from '~/features/fast-deals/mergedList'
+import type { FastDealListItem } from '~/features/fast-deals/types'
+
+/** The list holds applications of the LC and fast deals (`kind: 'fast_deal'`) in one order. */
+type LeasingListRow = LeasingApplicationDisplay | FastDealListItem
 
 interface LeasingLcApplicationEntry {
   link?: {
@@ -201,7 +212,7 @@ interface ApplicationsResponse {
 const config = useRuntimeConfig()
 const authStore = useAuthStore()
 
-const applications = ref<LeasingApplicationDisplay[]>([])
+const applications = ref<LeasingListRow[]>([])
 const loading = ref(true)
 const error = ref('')
 const myLeasingCompanyName = ref<string>('')
@@ -210,6 +221,15 @@ const filters = ref({
   status: '',
   search: '',
   sources: [] as SiteApplicationSourceType[],
+  kind: '' as ApplicationListKind | '',
+})
+
+// An ordinary status excludes fast deals on the server; while only fast deals are listed the
+// ordinary status filter is not sent at all.
+const statusFilterHint = computed(() => {
+  if (filters.value.kind === 'fast_deal') return 'Статус быстрой регистрации выбирается в разделе «Регистрация сделки».'
+  if (filters.value.status && filters.value.kind === '') return 'При выборе статуса показываются только заявки, быстрые регистрации скрыты.'
+  return ''
 })
 
 const pagination = ref<PaginationInfo>({
@@ -228,9 +248,11 @@ const fetchApplications = async () => {
       page: pagination.value.page.toString(),
       limit: pagination.value.limit.toString(),
     })
-    if (filters.value.status) params.append('status', filters.value.status)
+    if (filters.value.status && filters.value.kind !== 'fast_deal') params.append('status', filters.value.status)
     if (filters.value.search.trim()) params.append('search', filters.value.search.trim())
     if (filters.value.sources.length) params.append('source_type', filters.value.sources.join(','))
+    const kind = kindQueryValue(filters.value.kind)
+    if (kind) params.append('kind', kind)
 
     const response = await $fetch<ApplicationsResponse>(
       `/api/v1/leasing/applications?${params.toString()}`,
@@ -238,7 +260,9 @@ const fetchApplications = async () => {
     )
 
     applications.value = (response.applications || [])
-      .map((entry): LeasingApplicationDisplay | null => {
+      .map((entry): LeasingListRow | null => {
+        const deal = asFastDealRow(entry)
+        if (deal) return deal
         const app = entry?.application
         if (!app || typeof app.id !== 'string' || !app.id) return null
         const parentStatus = (app.status as string | undefined) || ''
@@ -264,7 +288,7 @@ const fetchApplications = async () => {
             (app as { attached_documents_count?: number }).attached_documents_count ?? 0,
         } as LeasingApplicationDisplay
       })
-      .filter((a): a is LeasingApplicationDisplay => a !== null)
+      .filter((a): a is LeasingListRow => a !== null)
       .sort(compareApplications)
     pagination.value = response.pagination
   } catch (err: unknown) {
@@ -289,13 +313,17 @@ const changePage = (page: number) => {
   fetchApplications()
 }
 
-const applicationTimestamp = (application: LeasingApplicationDisplay): number => {
-  const value = String(application.updated_at || application.submitted_at || application.created_at || '')
+const applicationTimestamp = (application: LeasingListRow): number => {
+  const value = String(
+    isFastDealRow(application)
+      ? application.updated_at || application.created_at || ''
+      : application.updated_at || application.submitted_at || application.created_at || '',
+  )
   const timestamp = Date.parse(value)
   return Number.isNaN(timestamp) ? 0 : timestamp
 }
 
-const compareApplications = (a: LeasingApplicationDisplay, b: LeasingApplicationDisplay): number => (
+const compareApplications = (a: LeasingListRow, b: LeasingListRow): number => (
   applicationTimestamp(b) - applicationTimestamp(a)
 )
 

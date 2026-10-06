@@ -1,7 +1,7 @@
 <template>
-  <Modal :show="true" :title="'Сделка ' + formatSourcedApplicationNumber({ display_number: current.application_number, source_type: current.source_type })" :subtitle="subtitle" size="6xl" body-class="monetization monetization-deal-modal" :closable="!busy" :close-on-overlay="!busy && !adjustment" :show-footer="true" @close="close">
+  <Modal :show="true" :title="'Сделка ' + dealNumber(current)" :subtitle="subtitle" size="6xl" body-class="monetization monetization-deal-modal" :closable="!busy" :close-on-overlay="!busy && !adjustment" :show-footer="true" @close="close">
     <div class="deal-detail">
-      <div class="flex flex-wrap items-center gap-2"><span class="muted">Источник заявки:</span><ApplicationSourceBadge v-if="applicationSourcePresentation(current.source_type)" :source="current.source_type" /><span v-else>{{ sourceLabel(current.source_type) }}</span><NuxtLink v-if="applicationLocation" :to="applicationLocation" class="text-blue-600 underline">Перейти к заявке</NuxtLink></div>
+      <div class="flex flex-wrap items-center gap-2"><span class="muted">Источник заявки:</span><ApplicationSourceBadge v-if="siteSource" :source="siteSource" /><span v-else>{{ sourceLabel(current.source_type) }}</span><span v-if="fastDeal" class="source-pill">{{ fastDealOriginLabel }}</span><NuxtLink v-if="applicationLocation" :to="applicationLocation" class="text-blue-600 underline">{{ fastDeal ? 'Перейти к регистрации сделки' : 'Перейти к заявке' }}</NuxtLink></div>
       <div class="deal-state-actions">
         <div class="flex items-center gap-2"><span class="badge" :class="current.status">{{ current.status === 'paid' ? 'Оплачена' : 'Ожидает подтверждения' }}</span><span v-if="current.has_new_conditions" class="badge new-terms-badge">Новые условия</span></div>
         <div class="flex items-center gap-2">
@@ -82,7 +82,7 @@ import { dealApplicationLocation } from '../routes'
 import type { MonetizationApi } from '../api'
 import { errorMessage } from '../api'
 import { participantLabels, sourceLabel } from '../editor'
-import { applicationSourcePresentation, formatSourcedApplicationNumber } from '~/features/applications/sourceType'
+import { applicationSourceOf, dealNumber, fastDealOriginLabel, isFastDealSource } from '../dealSource'
 import ApplicationSourceBadge from '~/features/applications/components/ApplicationSourceBadge.vue'
 import { formatMoney } from '../money'
 import { groupIncomes } from '../grouping'
@@ -95,6 +95,8 @@ const emit = defineEmits<{ close: []; updated: [deal: Deal] }>()
 const current = ref(props.deal)
 const route = useRoute()
 const applicationLocation = computed(() => dealApplicationLocation(current.value, props.role, route.query))
+const siteSource = computed(() => applicationSourceOf(current.value.source_type))
+const fastDeal = computed(() => isFastDealSource(current.value.source_type))
 function recipientCompanyName(party: Participant): string | undefined {
   if (party === 'leasing') return current.value.leasing_company?.name
   if (party === 'dealer') return current.value.dealer_company?.name

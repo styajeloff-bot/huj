@@ -10,6 +10,7 @@ from urllib.parse import urlsplit
 from zoneinfo import ZoneInfo
 
 from domain.events.notifications import NotificationEvent
+from domain.fast_deals.notification_content import fast_deal_view
 from domain.notification_policy import POLICIES, action_route, notification_data
 from infrastructure.settings import settings
 
@@ -50,6 +51,13 @@ def build_inbox(event: NotificationEvent, recipient: dict[str, Any]) -> dict[str
         title = f"Другой дилер {verb} ставку"
     data = notification_data(event, recipient["role"])
     message = f"{title}. Заявка №{event.request_number}."
+    card_visible = True
+    if event.event_type.startswith("fast_deal."):
+        view = fast_deal_view(
+            event, role=recipient["role"], relation=recipient.get("fast_deal_relation")
+        )
+        title, message, card_visible = view.title, view.message, view.card_visible
+        data.update(view.data)
     if event.event_type == "document_registry.expiring":
         expiry = date.fromisoformat(event.payload["valid_to"])
         message = (
@@ -97,6 +105,7 @@ def build_inbox(event: NotificationEvent, recipient: dict[str, Any]) -> dict[str
             event, recipient["role"], recipient.get("storefront_slug"),
             recipient.get("leasing_company_id"),
             recipient.get("company_id"),
+            card_visible=card_visible,
         ),
     }
 
@@ -159,6 +168,7 @@ def build_email(
         lines = [item["message"], f"Дата события: {stamp}"]
         if data.get("actor_name"):
             lines.append(f"Автор действия: {data['actor_name']}")
+        lines.extend(str(line) for line in data.get("summary_lines", ()))
         if data.get("attachment_name"):
             lines.append(f"Вложение: {data['attachment_name']}")
         if data.get("requested_documents"):
@@ -172,13 +182,16 @@ def build_email(
         )
         if data.get("expiration_at"):
             lines.append(f"До окончания на момент события: {data['remaining_time']}")
-        plain.append("\n".join([*lines, f"Открыть заявку: {url}"]))
+        action = data.get("action_label") or "Открыть заявку"
+        plain.append("\n".join([*lines, f"{action}: {url}"]))
         html.append(
             "<section><h2>"
             + escape(item["title"])
             + "</h2>"
             + "".join(f"<p>{escape(line)}</p>" for line in lines)
-            + f'<p><a href="{escape(url, quote=True)}" style="display:inline-block;padding:12px 20px;background:#163a5f;color:#ffffff;text-decoration:none;border-radius:4px">Открыть заявку</a></p></section>'
+            + f'<p><a href="{escape(url, quote=True)}" style="display:inline-block;padding:12px 20px;background:#163a5f;color:#ffffff;text-decoration:none;border-radius:4px">'
+            + escape(action)
+            + "</a></p></section>"
         )
     return {
         "subject": subject,

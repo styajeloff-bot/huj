@@ -151,7 +151,7 @@ async def list_compensations(
     recipient: str | None = None,
     source: Annotated[
         str | None,
-        Query(pattern="^(platform|exchange)$"),
+        Query(pattern="^(platform|exchange|fast_deal)$"),
     ] = None,
     due_date_from: Annotated[date | None, Query()] = None,
     due_date_to: Annotated[date | None, Query()] = None,

@@ -241,6 +241,7 @@ class DealOut(BaseModel):
     application_id: UUID | None = None
     leasing_company_application_id: UUID | None = None
     exchange_request_id: UUID | None = None
+    fast_deal_id: UUID | None = None
     source_type: str
     brand: str | None = None
     program_id: UUID
@@ -270,6 +271,7 @@ class DealOut(BaseModel):
 class DealSummary(BaseModel):
     id: UUID
     application_number: str | None = None
+    fast_deal_id: UUID | None = None
     source_type: str
     brand: str | None = None
     leasing_company: CompanyOption | None = None

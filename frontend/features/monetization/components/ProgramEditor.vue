@@ -57,7 +57,7 @@
     <h3 class="sources-heading">Источники заявки и расчёт</h3>
     <p class="muted sources-intro">Каждый источник содержит свои связки. Каждая связка — один плательщик и его получатели дохода.</p>
     <section v-for="block in draft.sources" :key="block.local_id" class="source-card">
-      <label class="source-field"><span>Источник заявки</span><select class="select-field" v-model="block.source_type"><option v-for="option in sourceOptions" :key="option.value" :value="option.value" :disabled="option.disabled">{{ option.label }}</option></select></label>
+      <label class="source-field"><span>Источник заявки</span><select class="select-field" v-model="block.source_type"><optgroup label="Заявки"><option v-for="option in applicationSourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option></optgroup><optgroup :label="fastDealOriginLabel"><option v-for="option in fastDealSourceOptions" :key="option.value" :value="option.value">{{ option.label }}</option></optgroup></select></label>
       <div v-for="(pair, pairIndex) in block.pairs" :key="pair.local_id" class="condition-pair">
         <div class="pair-heading"><h4>Связка #{{ pairIndex + 1 }}</h4><button v-if="block.pairs.length > 1" type="button" class="remove-link" @click="block.pairs.splice(pairIndex, 1)">Удалить связку</button></div>
         <div class="condition-columns">
@@ -91,6 +91,7 @@ import type { MonetizationApi } from '../api'
 import { errorMessage } from '../api'
 import type { CatalogMark, CatalogModel, CatalogModification, CatalogTrim, Company, ConditionPair, ConditionRow, Program, ProgramDraft, ProgramEditorDraft, Support } from '../types'
 import { newPair, newPairedBlock, newRow, sourceOptions, toProgramDraft, validateDraft } from '../editor'
+import { fastDealOriginLabel, isFastDealSource } from '../dealSource'
 import { capPairIncomes, pairBudget } from '../budget'
 import CatalogMarkPicker from './CatalogMarkPicker.vue'
 import CompanyPicker from './CompanyPicker.vue'
@@ -99,6 +100,8 @@ import FileList from './FileList.vue'
 import { DocumentRegistryPicker, type MonetizationDocumentContext, type Participants } from '~/features/documentRegistry'
 const props = defineProps<{ api: MonetizationApi }>()
 const emit = defineEmits<{ cancel: []; saved: [program: Program] }>()
+const applicationSourceOptions = sourceOptions.filter(option => !isFastDealSource(option.value))
+const fastDealSourceOptions = sourceOptions.filter(option => isFastDealSource(option.value))
 let sequence = 0
 const id = () => `row-${++sequence}`
 const draft = reactive<ProgramEditorDraft>({ name: '', leasing_company_id: null, dealer_company_id: null, distributor_company_id: null, support_program_id: null, brand: null, model: null, modification: null, trim: null, vin: null, period_start: '', period_end: null, status: 'active', sources: [newPairedBlock(id(), id(), id(), id())] })

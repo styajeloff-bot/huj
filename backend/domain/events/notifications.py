@@ -50,7 +50,24 @@ EventType = Literal[
     "exchange.request_finalized",
     "exchange.bid_selected",
     "exchange.bid_not_selected",
+    "fast_deal.sent",
+    "fast_deal.offer_sent",
+    "fast_deal.offer_selected",
+    "fast_deal.selection_withdrawn",
+    "fast_deal.lc_rejected",
+    "fast_deal.confirmed",
+    "fast_deal.rejected",
+    "fast_deal.reset",
+    "fast_deal.changes_sent",
+    "fast_deal.changes_accepted",
+    "fast_deal.changes_rejected",
+    "fast_deal.cancelled",
+    "fast_deal.assignees_changed",
+    "fast_deal.support_requested",
+    "fast_deal.support_decided",
 ]
+
+FAST_DEAL_PAYLOAD_FIELDS = ("source_type", "scope", "deal_version", "target_company_ids")
 
 REQUIRED_PAYLOAD_FIELDS: dict[str, tuple[str, ...]] = {
     "document_registry.expiring": ("version_id", "valid_to", "document_type", "document_name"),
@@ -95,6 +112,26 @@ REQUIRED_PAYLOAD_FIELDS: dict[str, tuple[str, ...]] = {
     "exchange.bid_not_selected": ("selected_dealer_company_id",),
     "exchange.deadline_24h": ("expiration_at",),
     "exchange.deadline_1h": ("expiration_at",),
+    **dict.fromkeys(
+        (
+            "fast_deal.sent",
+            "fast_deal.offer_sent",
+            "fast_deal.offer_selected",
+            "fast_deal.selection_withdrawn",
+            "fast_deal.lc_rejected",
+            "fast_deal.confirmed",
+            "fast_deal.rejected",
+            "fast_deal.reset",
+            "fast_deal.changes_sent",
+            "fast_deal.changes_accepted",
+            "fast_deal.changes_rejected",
+            "fast_deal.cancelled",
+            "fast_deal.assignees_changed",
+            "fast_deal.support_requested",
+            "fast_deal.support_decided",
+        ),
+        FAST_DEAL_PAYLOAD_FIELDS,
+    ),
 }
 
 
@@ -139,6 +176,7 @@ class NotificationEvent(BaseModel):
         "monetization_deal",
         "monetization_capture",
         "monetization_condition_request",
+        "fast_deal",
     ]
     entity_id: UUID
     aggregate_id: UUID
@@ -235,6 +273,8 @@ class NotificationEvent(BaseModel):
             self._validate_document_registry_fact()
         elif self.event_type.startswith("monetization."):
             self._validate_monetization_fact()
+        elif self.event_type.startswith("fast_deal."):
+            self._validate_fast_deal_fact()
         elif leasing:
             if self.entity_type != "leasing_application" or not (
                 self.application_id == self.entity_id == self.aggregate_id
@@ -253,6 +293,27 @@ class NotificationEvent(BaseModel):
             and self.entity_id != self.aggregate_id
         ):
             raise ValueError("Exchange request is its own aggregate")
+
+    def _validate_fast_deal_fact(self) -> None:
+        """A deal is its own aggregate; the key makes one fact per deal version."""
+        if (
+            self.entity_type != "fast_deal"
+            or self.entity_id != self.aggregate_id
+            or self.application_id is not None
+        ):
+            raise ValueError("A fast deal fact must identify its deal and no application")
+        version = self.payload.get("deal_version")
+        if type(version) is not int or version < 1:
+            raise ValueError("A fast deal fact requires its positive deal version")
+        targets = self.payload.get("target_company_ids")
+        if not isinstance(targets, list) or not targets:
+            raise ValueError("A fast deal fact requires at least one target company")
+        if not isinstance(self.payload.get("scope"), str):
+            raise ValueError("A fast deal fact requires its recipient scope")  # noqa: TRY004 - Pydantic validation
+        # ``<event>:<deal>:<version>[:<scope suffix>]``
+        key = (self.occurrence_key or "").split(":")
+        if key[:3] != [self.event_type, str(self.entity_id), str(version)]:
+            raise ValueError("A fast deal occurrence must identify its event, deal and version")
 
     def _validate_document_registry_fact(self) -> None:
         if (

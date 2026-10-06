@@ -126,4 +126,4 @@ async def ensure_unbinding_allowed(session: AsyncSession, vehicle_ids: list[UUID
         WHERE product_id = ANY(CAST(:ids AS uuid[])) AND released_at IS NULL)
     """), {"ids": vehicle_ids})).scalar_one()
     if claimed:
-        raise ApplicationVehicleAssignmentError("Нельзя отвязать технику, закреплённую за заявкой или завершённой сделкой")
+        raise ApplicationVehicleAssignmentError("Нельзя отвязать технику, закреплённую за заявкой, быстрой сделкой или завершённой сделкой")

@@ -124,6 +124,14 @@ async def resolve_recipients(
         )
 
         return await resolve_monetization_recipients(session, event, user_id=user_id, company_id=company_id)
+    if event.event_type.startswith("fast_deal."):
+        from application.notifications.fast_deal_recipients import (
+            resolve_fast_deal_recipients,
+        )
+
+        return await resolve_fast_deal_recipients(
+            session, event, user_id=user_id, company_id=company_id,
+        )
     context = await load_context(session, event)
     if context is None:
         return []

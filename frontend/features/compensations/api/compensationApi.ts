@@ -3,7 +3,7 @@ import type { UUID } from '~/types/ids'
 type RuntimeConfig = ReturnType<typeof useRuntimeConfig>
 
 export type CompensationStatus = 'under_review' | 'accepted' | 'rejected' | 'paid' | 'overdue' | 'cancelled'
-export type CompensationSource = 'platform' | 'exchange'
+export type CompensationSource = 'platform' | 'exchange' | 'fast_deal'
 export type CompensationSchedulePeriod = 'week' | 'month' | 'two_months' | 'quarter' | 'half_year' | 'year'
 export type CompensationPayer =
   | 'distributor'
@@ -42,6 +42,8 @@ export interface CompensationRecord {
   application_display_number?: string | null
   exchange_request_id: UUID | null
   exchange_request_display_number?: string | null
+  fast_deal_id?: UUID | null
+  fast_deal_display_number?: string | null
   source: CompensationSource
   vehicle_id: UUID | null
   payer: CompensationPayer
